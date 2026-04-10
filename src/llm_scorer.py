@@ -27,8 +27,78 @@ class LLMScorer:
         return key
     
     def _get_model(self) -> str:
-        model = self.config.get("model", "gemini-2.0-flash")
-        return model if model != "auto" else "gemini-2.0-flash"
+        """获取模型，自动选择可用的 Flash 模型"""
+        model = self.config.get("model")
+        if model and model != "auto":
+            return model
+        
+        return self._select_best_model()
+    
+    def _select_best_model(self) -> str:
+        """自动选择最佳可用模型"""
+        try:
+            url = f"{self._get_base_url()}/models?key={self.api_key}"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            models = response.json().get("models", [])
+            available_models = {m["name"].replace("models/", ""): m for m in models}
+            
+            # 测试每个模型是否能正常使用
+            test_prompt = "Reply with: OK"
+            
+            # 优先级列表（根据已知配额调整）
+            priority_models = [
+                "gemini-2.5-flash",
+                "gemini-2.0-flash", 
+                "gemini-flash-latest",
+            ]
+            
+            for model in priority_models:
+                if model in available_models:
+                    # 测试模型是否可用
+                    if self._test_model(model, test_prompt):
+                        logger.info(f"Auto-selected model: {model}")
+                        return model
+            
+            # 如果优先模型都不可用，尝试其他 flash 模型
+            for name, m in available_models.items():
+                if "flash" in name.lower() and "generateContent" in m.get("supportedGenerationMethods", []):
+                    if self._test_model(name, test_prompt):
+                        logger.info(f"Auto-selected model: {name}")
+                        return name
+            
+            raise Exception("No suitable model found")
+            
+        except Exception as e:
+            logger.warning(f"Failed to auto-select model: {e}, using gemini-2.5-flash")
+            return "gemini-2.5-flash"
+    
+    def _test_model(self, model: str, prompt: str) -> bool:
+        """测试模型是否可用"""
+        try:
+            url = f"{self._get_base_url()}/models/{model}:generateContent"
+            headers = {
+                "Content-Type": "application/json",
+                "X-goog-api-key": self.api_key,
+            }
+            data = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"maxOutputTokens": 10}
+            }
+            response = requests.post(url, headers=headers, json=data, timeout=10)
+            
+            if response.status_code == 200:
+                return True
+            elif response.status_code == 429:
+                logger.debug(f"Model {model} rate limited")
+                return False
+            else:
+                logger.debug(f"Model {model} failed: {response.status_code}")
+                return False
+        except Exception as e:
+            logger.debug(f"Model {model} test failed: {e}")
+            return False
     
     def _get_base_url(self) -> str:
         return self.config.get("base_url", "https://generativelanguage.googleapis.com/v1beta")
