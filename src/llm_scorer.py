@@ -124,23 +124,23 @@ class LLMScorer:
         
         return None
     
-    def score_paper(self, title: str, abstract: str, keywords: List[str]) -> Tuple[float, str, str, List[str]]:
+    def score_paper(self, title: str, abstract: str, keywords: List[str]) -> Tuple[float, str, str, str]:
         """
         对论文进行评分和分类
         
         Returns:
-            (score, summary, reason, keywords): 评分(0-100)、摘要、评分理由、匹配的关键词列表
+            (score, summary, reason, category): 评分(0-100)、摘要、评分理由、匹配的分类
         """
         prompt = self._build_prompt(title, abstract, keywords)
         
         try:
             response = self._call_api(prompt)
-            score, summary, reason, matched_keywords = self._parse_response(response)
-            logger.info(f"Scored paper '{title[:50]}...': {score}/100, keywords: {matched_keywords}")
-            return score, summary, reason, matched_keywords
+            score, summary, reason, category = self._parse_response(response)
+            logger.info(f"Scored paper '{title[:50]}...': {score}/100, category: {category}")
+            return score, summary, reason, category
         except Exception as e:
             logger.error(f"Failed to score paper: {e}")
-            return 0.0, "", "", []
+            return 0.0, "", "", ""
     
     def _build_prompt(self, title: str, abstract: str, keywords: List[str]) -> str:
         keywords_str = "、".join(keywords)
@@ -165,7 +165,7 @@ class LLMScorer:
     "score": <0-100的整数>,
     "summary": "<一句话总结论文核心贡献，30字以内>",
     "reason": "<评分理由，50字以内>",
-    "keywords": ["<匹配的分类，从可选分类中选择，可多选>"]
+    "category": "<最贴近的分类，从可选分类中选一个>"
 }}"""
     
     def _call_api(self, prompt: str) -> Dict:
@@ -234,7 +234,7 @@ class LLMScorer:
         
         raise Exception("Max retries exceeded")
     
-    def _parse_response(self, response: Dict) -> Tuple[float, str, str, List[str]]:
+    def _parse_response(self, response: Dict) -> Tuple[float, str, str, str]:
         """解析API响应"""
         content = ""
         try:
@@ -264,10 +264,10 @@ class LLMScorer:
             score = float(result.get("score", 0))
             summary = result.get("summary", "")
             reason = result.get("reason", "")
-            keywords = result.get("keywords", [])
+            category = result.get("category", "")
             
-            return score, summary, reason, keywords
+            return score, summary, reason, category
         except Exception as e:
             logger.error(f"Failed to parse response: {e}")
             logger.error(f"Response content: {content[:500] if content else 'N/A'}")
-            return 0.0, "", "", []
+            return 0.0, "", "", ""

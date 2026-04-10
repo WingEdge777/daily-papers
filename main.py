@@ -50,7 +50,7 @@ class DailyPapers:
             # 3. 过滤低分论文
             filtered_papers = [
                 p for p in scored_papers
-                if p.score >= self.config.llm.min_score and p.keywords
+                if p.score >= self.config.llm.min_score and p.category
             ]
             
             # 4. 按分数排序
@@ -65,14 +65,14 @@ class DailyPapers:
                 f"(score >= {self.config.llm.min_score})"
             )
             
-            # 5. 按关键词分组输出
+            # 5. 按分类分组输出
             papers_content = ""
             daily_content = self._build_daily_header(current_date)
             
             for keyword in self.config.keywords:
                 keyword_papers = [
                     p for p in filtered_papers
-                    if keyword in p.keywords
+                    if p.category == keyword
                 ][:self.config.llm.max_papers_per_keyword]
                 
                 if keyword_papers:
@@ -110,7 +110,7 @@ class DailyPapers:
             
             logger.info(f"[{i}/{len(papers)}] Scoring: {paper.title[:50]}...")
             
-            score, summary, reason, keywords = self.llm_scorer.score_paper(
+            score, summary, reason, category = self.llm_scorer.score_paper(
                 paper.title,
                 paper.abstract,
                 self.config.keywords
@@ -121,7 +121,7 @@ class DailyPapers:
             paper.score = score
             paper.summary = summary
             paper.reason = reason
-            paper.keywords = keywords
+            paper.category = category
         
         return papers
     
@@ -157,16 +157,18 @@ class DailyPapers:
     def _format_papers(self, keyword: str, papers) -> str:
         """格式化论文列表（README）"""
         lines = [f"## {keyword}\n"]
-        lines.append("| 标题 | 评分 | AI摘要 | 日期 |")
-        lines.append("|------|------|--------|------|")
+        lines.append("| 标题 | 评分 | 摘要 | 日期 |")
+        lines.append("|------|------|------|------|")
         
         for paper in papers:
             title = f"**[{paper.title}]({paper.link})**"
             score = f"⭐ {paper.score:.0f}/100"
-            summary = paper.summary or "-"
             date = paper.date.strftime("%Y-%m-%d")
             
-            lines.append(f"| {title} | {score} | {summary} | {date} |")
+            abstract_preview = paper.abstract[:100] + "..." if len(paper.abstract) > 100 else paper.abstract
+            summary_cell = f"{paper.summary}<br><details><summary>📄 原始摘要</summary>{abstract_preview}</details>"
+            
+            lines.append(f"| {title} | {score} | {summary_cell} | {date} |")
         
         return "\n".join(lines) + "\n\n"
     
