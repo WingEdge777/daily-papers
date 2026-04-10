@@ -42,9 +42,11 @@ llm:
     fallback_model: "gemini-2.5-flash"
     priority_models:
       - "gemini-3.1-flash-lite-preview"
+      - "gemini-3.1-flash-lite"
       - "gemini-2.5-flash-lite"
       - "gemini-2.5-flash"
       - "gemini-2.0-flash"
+      - "gemma-4-31B"
     temperature: 0.3
     max_output_tokens: 2048
     timeout: 60
