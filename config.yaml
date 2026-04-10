@@ -1,18 +1,18 @@
 # 研究领域关键词（用于LLM分类）
 keywords:
-  - "Agent"
   - "Large Language Models"
-  - "Computer Vision"
-  - "Diffusion Models"
+  - "Natural Language Processing"
   - "Vision Language Models"
+  - "Diffusion Models"
   - "Multimodal"
   - "Image Generation"
   - "Video Generation"
+  - "Agent"
   - "Distributed Computing"
   - "Operating Systems"
   - "Information Retrieval"
+  - "Computer Vision"
   - "Machine Learning"
-  - "Natural Language Processing"
 
 # ArXiv API配置
 arxiv:
