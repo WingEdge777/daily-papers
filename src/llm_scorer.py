@@ -115,7 +115,7 @@ class LLMScorer:
         try:
             response = self._call_llm(prompt)
             score, summary, reason = self._parse_response(response)
-            logger.info(f"Scored paper '{title[:50]}...': {score}/10")
+            logger.info(f"Scored paper '{title[:50]}...': {score}/100")
             return score, summary, reason
         except Exception as e:
             logger.error(f"Failed to score paper: {e}")
@@ -128,15 +128,17 @@ class LLMScorer:
 
 摘要: {abstract}
 
-请从以下角度评估：
+请从以下角度评估（每项0-25分）：
 1. 创新性：是否提出新方法/新视角
 2. 实用性：是否有实际应用价值
 3. 严谨性：方法是否合理，实验是否充分
 4. 清晰度：写作是否清晰易懂
 
+总分 = 四项得分之和（0-100分）
+
 请严格按以下JSON格式回复（不要有其他内容）：
 {{
-    "score": <1-10的整数>,
+    "score": <0-100的整数>,
     "summary": "<一句话总结论文核心贡献，30字以内>",
     "reason": "<评分理由，50字以内>"
 }}"""

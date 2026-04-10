@@ -166,7 +166,7 @@ class DailyPapers:
         
         for paper in papers:
             title = f"**[{paper.title}]({paper.link})**"
-            score = f"⭐ {paper.score:.1f}/10"
+            score = f"⭐ {paper.score:.0f}/100"
             summary = paper.summary or "-"
             date = paper.date.strftime("%Y-%m-%d")
             
@@ -180,7 +180,7 @@ class DailyPapers:
         
         for i, paper in enumerate(papers, 1):
             title = f"**[{paper.title}]({paper.link})**"
-            score = f"⭐ {paper.score:.1f}/10"
+            score = f"⭐ {paper.score:.0f}/100"
             date = paper.date.strftime("%Y-%m-%d")
             authors = ", ".join(paper.authors[:3])
             if len(paper.authors) > 3:

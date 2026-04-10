@@ -21,7 +21,7 @@ arxiv:
     - "cs.MM"      # Multimedia
 
 llm:
-  min_score: 7.0
+  min_score: 70
   max_papers_per_keyword: 5
   
   # Google AI Studio 配置
