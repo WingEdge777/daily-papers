@@ -93,7 +93,7 @@ class LLMScorer:
             }],
             "generationConfig": {
                 "temperature": 0.3,
-                "maxOutputTokens": 200
+                "maxOutputTokens": 500
             }
         }
         

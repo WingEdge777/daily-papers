@@ -54,8 +54,8 @@ jobs:
       
       - name: Commit and push README
         run: |
-          git config --local user.email "handkodu@gmail.com"
-          git config --local user.name WingEdge777"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           git add README.md HISTORY.md
           git diff --quiet && git diff --staged --quiet || git commit -m "Update daily papers - $(date +'%Y-%m-%d')"
           git push

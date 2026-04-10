@@ -21,8 +21,12 @@ class ArxivClient:
         try:
             # 构建查询
             query = self._build_query(keyword)
-            url = f"{self.base_url}?search_query={query}&max_results={self.max_results}&sortBy=lastUpdatedDate"
-            url = urllib.parse.quote(url, safe="%/:=&?~#+!$,;'@()*[]")
+            params = {
+                'search_query': query,
+                'max_results': self.max_results,
+                'sortBy': 'lastUpdatedDate'
+            }
+            url = self.base_url + '?' + urllib.parse.urlencode(params)
             
             logger.info(f"Fetching papers for: {keyword}")
             
