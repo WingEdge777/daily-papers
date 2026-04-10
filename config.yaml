@@ -28,16 +28,9 @@ llm:
   min_score: 70
   max_papers_per_keyword: 5
   
-  # Google AI Studio 配置
   google:
-    provider: "google"
     api_key: "${GOOGLE_AI_API_KEY}"
-    model: "auto"  # 自动选择最佳可用模型
+    model: "auto"
     base_url: "https://generativelanguage.googleapis.com/v1beta"
-
-# 输出配置
-output:
-  issues_results: 5
-  show_summary: true
 
 timezone: "Asia/Shanghai"

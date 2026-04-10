@@ -80,7 +80,7 @@ class DailyPapers:
             
             # 5. 按关键词分组输出
             readme_content = self._build_header(current_date)
-            issue_content = self._build_issue_header(current_date)
+            daily_content = self._build_daily_header(current_date)
             
             for keyword in self.config.keywords:
                 keyword_papers = [
@@ -90,13 +90,10 @@ class DailyPapers:
                 
                 if keyword_papers:
                     readme_content += self._format_papers(keyword, keyword_papers)
-                    issue_content += self._format_papers_issue(keyword, keyword_papers)
+                    daily_content += self._format_papers_detail(keyword, keyword_papers)
             
             # 写入文件
-            self._write_files(readme_content, issue_content)
-            
-            # 追加历史记录
-            self._append_history(current_date, issue_content)
+            self._write_files(readme_content, daily_content, current_date)
             
             logger.info("\n" + "=" * 50)
             logger.info("✅ DailyPapers completed successfully!")
@@ -144,20 +141,13 @@ class DailyPapers:
             "# Daily Papers - AI精选论文\n\n"
             "精选高质量论文，由 Google Gemini 评分筛选。\n\n"
             f"**最后更新**: {current_date}\n\n"
-            "[📖 查看历史论文](HISTORY.md)\n\n"
+            "[📖 查看历史论文](papers/)\n\n"
             "---\n\n"
             "<!-- PAPERS_START -->\n\n"
         )
     
-    def _build_issue_header(self, current_date: str) -> str:
-        date_str = datetime.now(self.timezone).strftime("%B %d, %Y")
-        return (
-            "---\n"
-            f"title: 精选论文 - {date_str}\n"
-            "labels: documentation\n"
-            "---\n"
-            "**请查看 [GitHub](https://github.com/zezhishao/daily-papers) 获取完整列表。**\n\n"
-        )
+    def _build_daily_header(self, current_date: str) -> str:
+        return f"# 精选论文 - {current_date}\n\n"
     
     def _format_papers(self, keyword: str, papers) -> str:
         """格式化论文列表（README）"""
@@ -175,8 +165,8 @@ class DailyPapers:
         
         return "\n".join(lines) + "\n\n"
     
-    def _format_papers_issue(self, keyword: str, papers) -> str:
-        """格式化论文列表（Issue）- 详细版"""
+    def _format_papers_detail(self, keyword: str, papers) -> str:
+        """格式化论文列表（详细版）"""
         lines = [f"## {keyword}\n"]
         
         for i, paper in enumerate(papers, 1):
@@ -209,40 +199,21 @@ class DailyPapers:
         
         return "\n".join(lines) + "\n"
     
-    def _write_files(self, readme: str, issue: str):
+    def _write_files(self, readme: str, daily: str, date: str):
         """写入文件"""
+        # 写入 README
         with open("README.md", "w", encoding='utf-8') as f:
             f.write(readme)
         
-        Path(".github/ISSUE_TEMPLATE.md").parent.mkdir(parents=True, exist_ok=True)
-        with open(".github/ISSUE_TEMPLATE.md", "w", encoding='utf-8') as f:
-            f.write(issue)
+        # 写入每日文件
+        papers_dir = Path("papers")
+        papers_dir.mkdir(exist_ok=True)
         
-        logger.info("✅ Files updated")
-    
-    def _append_history(self, date: str, issue_content: str):
-        """追加历史记录"""
-        history_file = Path("HISTORY.md")
+        daily_file = papers_dir / f"{date}.md"
+        with open(daily_file, "w", encoding='utf-8') as f:
+            f.write(daily)
         
-        if not history_file.exists():
-            header = "# 论文历史记录\n\n本文档记录每天的精选论文。\n\n---\n\n"
-            with open(history_file, "w", encoding='utf-8') as f:
-                f.write(header)
-        
-        # 移除 frontmatter
-        content_lines = issue_content.split('\n')
-        if content_lines[0] == '---':
-            end_idx = content_lines.index('---', 1)
-            content = '\n'.join(content_lines[end_idx + 1:])
-        else:
-            content = issue_content
-        
-        with open(history_file, "a", encoding='utf-8') as f:
-            f.write(f"\n## 📅 {date}\n\n")
-            f.write(content)
-            f.write("\n---\n")
-        
-        logger.info("✅ History updated")
+        logger.info(f"✅ Files updated: README.md, papers/{date}.md")
 
 
 def main():

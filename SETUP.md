@@ -22,7 +22,7 @@
 
 ## 3. 配置 Workflow 权限
 
-**重要：Fork 的仓库需要额外配置权限才能创建 Issue 和提交代码。**
+**重要：Fork 的仓库需要额外配置权限才能提交代码。**
 
 1. 进入仓库 **Settings**
 2. 左侧菜单选择 **Actions** → **General**
@@ -35,21 +35,21 @@
 1. 进入 **Actions** → **Daily Papers**
 2. 点击 **Run workflow** → **Run workflow**
 3. 等待运行完成
-4. 查看 **Issues** 标签页，应该会创建一个新的 Issue
+4. 查看 `papers/` 目录，应该会创建一个新的日期文件
 
 ## 5. 自动运行
 
 Workflow 已配置为每天 UTC 0:00（北京时间 8:00）自动运行。
 
-## 6. 接收通知
+## 6. 查看历史论文
 
-### 方式1：Watch 仓库
-点击仓库右上角的 **Watch** → **All Activity**，即可收到每次运行的邮件通知。
+所有历史论文保存在 `papers/` 目录，每天一个单独的 markdown 文件。
 
-### 方式2：订阅 Issues
-仓库会自动创建每日论文 Issue，GitHub 会通知所有 Watchers。
+## 7. 接收邮件通知
 
-## 7. 修改运行时间
+点击仓库右上角 **Watch** → **All Activity**，即可收到每次运行的邮件通知。
+
+## 8. 修改运行时间
 
 编辑 `.github/workflows/daily-papers.yml` 中的 cron 表达式：
 
@@ -63,9 +63,9 @@ schedule:
 - `'0 1 * * *'` - UTC 1:00（北京时间 9:00）
 - `'0 23 * * *'` - UTC 23:00（北京时间次日 7:00）
 
-## 8. 模型选择
+## 9. 模型选择
 
-默认使用 **Gemini 2.0 Flash**，免费且快速。
+默认自动选择可用的 Gemini 模型。
 
 **手动指定模型：**
 
@@ -74,13 +74,8 @@ schedule:
 ```yaml
 llm:
   google:
-    model: "gemini-1.5-pro"  # 更强大的模型
+    model: "gemini-3.1-flash-lite-preview"  # 指定模型
 ```
-
-可用模型：
-- `gemini-2.0-flash` - 最新，快速（推荐）
-- `gemini-1.5-flash` - 稳定，快速
-- `gemini-1.5-pro` - 更强大，稍慢
 
 ## 故障排查
 
@@ -92,14 +87,9 @@ llm:
 - 检查 ArXiv API 是否可访问
 - 查看 Actions 日志中的错误信息
 
-### Issue 创建失败
-- 检查仓库是否有 Issues 功能启用
-- 检查 GitHub Token 权限
-
-### 邮件没有收到
-- 确认已 Watch 仓库
-- 检查 GitHub 邮件通知设置（Settings → Notifications）
-- 检查邮箱垃圾邮件文件夹
+### 文件提交失败
+- 检查 Workflow 权限设置（见步骤3）
+- 确认选择了 **Read and write permissions**
 
 ### 模型选择失败
 - 检查 Google AI API Key 是否有效

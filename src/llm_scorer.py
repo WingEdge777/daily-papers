@@ -2,8 +2,6 @@ import os
 import json
 import re
 import time
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from typing import Dict, Optional, Tuple
 import requests
 from .logger import logger
@@ -14,7 +12,6 @@ class LLMScorer:
     
     def __init__(self, config: Optional[Dict] = None):
         self.config = config or {}
-        self.provider = self.config.get("provider", "google")
         self.api_key = self._get_api_key()
         self.model = self._get_model()
         self.base_url = self._get_base_url()
@@ -47,7 +44,8 @@ class LLMScorer:
             # 测试每个模型是否能正常使用
             test_prompt = "Reply with: OK"
             
-            # 优先级列表（根据配额和可用性调整）
+            # 优先级列表 - 根据你的配额调整顺序
+            # 查看配额: https://aistudio.google.com/rate-limit?timeRange=last-28-days
             priority_models = [
                 "gemini-3.1-flash-lite-preview",  # 15 RPM, 250K daily
                 "gemini-2.5-flash-lite",          # 10 RPM, 250K daily
@@ -114,7 +112,7 @@ class LLMScorer:
         prompt = self._build_prompt(title, abstract)
         
         try:
-            response = self._call_llm(prompt)
+            response = self._call_api(prompt)
             score, summary, reason = self._parse_response(response)
             logger.info(f"Scored paper '{title[:50]}...': {score}/100")
             return score, summary, reason
@@ -144,14 +142,7 @@ class LLMScorer:
     "reason": "<评分理由，50字以内>"
 }}"""
     
-    def _call_llm(self, prompt: str) -> Dict:
-        """调用LLM API"""
-        if self.provider == "google":
-            return self._call_google(prompt)
-        else:
-            return self._call_openai_compatible(prompt)
-    
-    def _call_google(self, prompt: str) -> Dict:
+    def _call_api(self, prompt: str) -> Dict:
         """调用 Google AI Studio API"""
         url = f"{self.base_url}/models/{self.model}:generateContent"
         
@@ -218,108 +209,19 @@ class LLMScorer:
         
         raise Exception("Max retries exceeded")
     
-    def _call_openai_compatible(self, prompt: str) -> Dict:
-        """调用 OpenAI 兼容 API (OpenRouter)"""
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        
-        if self.provider == "openrouter":
-            headers["HTTP-Referer"] = "https://github.com/zezhishao/daily-papers"
-            headers["X-OpenRouter-Title"] = "DailyPapers"
-        
-        data = {
-            "model": self.model,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.3,
-            "max_tokens": 200
-        }
-        
-        max_retries = 3
-        response = None
-        
-        for attempt in range(max_retries):
-            try:
-                response = requests.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=data,
-                    timeout=60
-                )
-                
-                if response.status_code == 429:
-                    retry_after = self._parse_retry_after(response.headers.get("Retry-After"), 60)
-                    logger.warning(f"Rate limited, waiting {retry_after}s (attempt {attempt + 1}/{max_retries})")
-                    time.sleep(retry_after)
-                    continue
-                
-                if response.status_code == 400:
-                    error_detail = response.text
-                    logger.error(f"Bad Request (400): {error_detail}")
-                    raise requests.exceptions.HTTPError(f"400 Bad Request: {error_detail}")
-                
-                response.raise_for_status()
-                return response.json()
-                
-            except requests.exceptions.HTTPError as e:
-                if attempt < max_retries - 1 and response and response.status_code in [429, 503, 502]:
-                    wait_time = 2 ** attempt * 5
-                    logger.warning(f"Request failed, retrying in {wait_time}s... ({e})")
-                    time.sleep(wait_time)
-                    continue
-                raise
-            except requests.exceptions.Timeout:
-                if attempt < max_retries - 1:
-                    logger.warning(f"Timeout, retrying... (attempt {attempt + 1}/{max_retries})")
-                    time.sleep(5)
-                    continue
-                raise
-        
-        raise Exception("Max retries exceeded")
-    
-    def _parse_retry_after(self, retry_after: Optional[str], default: int = 60) -> int:
-        """解析 Retry-After header，支持整数秒和 HTTP 日期格式"""
-        if not retry_after:
-            return default
-        
-        try:
-            return int(retry_after)
-        except ValueError:
-            pass
-        
-        try:
-            retry_time = parsedate_to_datetime(retry_after)
-            if retry_time:
-                now = datetime.now(timezone.utc)
-                diff = (retry_time - now).total_seconds()
-                return max(int(diff), 0)
-        except Exception:
-            pass
-        
-        return default
-    
     def _parse_response(self, response: Dict) -> Tuple[float, str, str]:
-        """解析LLM响应"""
+        """解析API响应"""
         content = ""
         try:
-            if self.provider == "google":
-                content = response["candidates"][0]["content"]["parts"][0]["text"]
-            else:
-                content = response["choices"][0]["message"]["content"]
+            content = response["candidates"][0]["content"]["parts"][0]["text"]
             
             logger.debug(f"Raw response: {content}")
             
-            # 提取JSON - 处理 markdown 代码块
             content = content.strip()
             
-            # 方法1: 提取 ```json ... ``` 中的内容
             json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
             if json_match:
                 content = json_match.group(1)
-            # 方法2: 如果以 ``` 开头，去掉代码块标记
             elif content.startswith("```"):
                 lines = content.split('\n')
                 if lines[0].startswith("```"):
@@ -328,7 +230,6 @@ class LLMScorer:
                     lines = lines[:-1]
                 content = '\n'.join(lines).strip()
             
-            # 方法3: 尝试找到第一个 { 和最后一个 } 之间的内容
             if '{' in content and '}' in content:
                 start = content.index('{')
                 end = content.rindex('}') + 1
@@ -341,6 +242,6 @@ class LLMScorer:
             
             return score, summary, reason
         except Exception as e:
-            logger.error(f"Failed to parse LLM response: {e}")
+            logger.error(f"Failed to parse response: {e}")
             logger.error(f"Response content: {content[:500] if content else 'N/A'}")
             return 0.0, "", ""

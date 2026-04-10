@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      issues: write
     
     steps:
       - name: Checkout repository
@@ -32,33 +31,10 @@ jobs:
         run: |
           python main.py
       
-      - name: Create Issue
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const issueContent = fs.readFileSync('.github/ISSUE_TEMPLATE.md', 'utf8');
-            
-            // 提取标题（第一行 --- 之后的 title: 行）
-            const titleMatch = issueContent.match(/title:\s*(.+)/);
-            const title = titleMatch ? titleMatch[1] : '精选论文 - ' + new Date().toLocaleDateString('zh-CN');
-            
-            // 提取正文（第二个 --- 之后的内容）
-            const bodyParts = issueContent.split('---');
-            const body = bodyParts.length > 2 ? bodyParts.slice(2).join('---').trim() : issueContent;
-            
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: title,
-              body: body,
-              labels: ['documentation', 'daily-papers']
-            });
-      
-      - name: Commit and push README
+      - name: Commit and push
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add README.md HISTORY.md
+          git add README.md papers/
           git diff --quiet && git diff --staged --quiet || git commit -m "Update daily papers - $(date +'%Y-%m-%d')"
           git push

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel, ConfigDict
 
 
@@ -14,7 +14,6 @@ class Paper(BaseModel):
     comment: str
     date: datetime
     
-    # LLM评分字段
     score: float = 0.0
     summary: str = ""
     reason: str = ""
@@ -24,7 +23,6 @@ class Config(BaseModel):
     keywords: List[str]
     arxiv: 'ArxivConfig'
     llm: 'LLMConfig'
-    output: 'OutputConfig'
     timezone: str = "Asia/Shanghai"
 
 
@@ -34,11 +32,6 @@ class ArxivConfig(BaseModel):
 
 
 class LLMConfig(BaseModel):
-    min_score: float = 7.0
-    max_papers_per_keyword: int = 10
+    min_score: float = 70.0
+    max_papers_per_keyword: int = 5
     google: dict = {}
-
-
-class OutputConfig(BaseModel):
-    issues_results: int = 10
-    show_summary: bool = True

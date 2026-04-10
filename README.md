@@ -8,7 +8,6 @@
 
 - **🆓 完全免费** - 使用 Google AI Studio 免费 API
 - **🤖 自动运行** - GitHub Actions 每天自动运行
-- **📧 自动通知** - 创建 Issue 自动通知订阅者
 - **🎯 智能评分** - 四维度评估（0-100分）
 - **💡 AI摘要** - 自动生成论文核心贡献摘要
 
@@ -40,6 +39,8 @@ keywords:
   - "Large Language Models"
   - "Vision Language Models"
   - "Multimodal"
+  - "Image Generation"
+  - "Video Generation"
 ```
 
 ### 评分标准
@@ -64,8 +65,7 @@ llm:
 ## 📬 输出
 
 - **README.md** - 每天更新当天精选论文
-- **HISTORY.md** - 累增记录所有历史论文
-- **Issue** - 每天创建 Issue，详细展示论文信息
+- **papers/** - 每天一个单独的 markdown 文件，记录历史论文
 
 ## 📁 项目结构
 
@@ -75,7 +75,9 @@ daily-papers/
 ├── config.yaml
 ├── main.py
 ├── README.md
-├── HISTORY.md
+├── papers/          # 历史论文（每天一个文件）
+│   ├── 2026-04-10.md
+│   └── ...
 └── src/
     ├── api.py
     ├── llm_scorer.py
