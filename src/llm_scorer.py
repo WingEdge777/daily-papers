@@ -4,7 +4,8 @@ import re
 import time
 from typing import Dict, List, Optional, Set, Tuple
 import requests
-from .logger import logger
+
+from src.logger import logger
 
 
 class LLMScorer:

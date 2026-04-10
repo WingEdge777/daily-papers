@@ -1,6 +1,7 @@
 import yaml
 from pathlib import Path
-from .models import Config
+
+from src.models import Config
 
 
 class ConfigManager:

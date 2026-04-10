@@ -1,14 +1,19 @@
+import html
 import sys
 import time
+import traceback
 from datetime import datetime
 from pathlib import Path
+from typing import List
+
 import pytz
 
-from src.config import ConfigManager
 from src.api import ArxivClient
+from src.category_match import resolve_category
+from src.config import ConfigManager
 from src.llm_scorer import LLMScorer
-from src.models import Config
 from src.logger import logger
+from src.models import Config, Paper
 
 
 class DailyPapers:
@@ -89,11 +94,10 @@ class DailyPapers:
             
         except Exception as e:
             logger.error(f"❌ DailyPapers failed: {e}")
-            import traceback
             traceback.print_exc()
             sys.exit(1)
     
-    def _score_papers(self, papers):
+    def _score_papers(self, papers: List[Paper]) -> List[Paper]:
         """Score and categorize papers"""
         logger.info(f"Scoring {len(papers)} papers...")
         
@@ -121,7 +125,7 @@ class DailyPapers:
             paper.score = score
             paper.summary = summary
             paper.reason = reason
-            paper.category = category
+            paper.category = resolve_category(category, self.config.keywords)
         
         return papers
     
@@ -153,26 +157,36 @@ class DailyPapers:
     def _build_daily_header(self, current_date: str) -> str:
         return f"# 精选论文 - {current_date}\n\n"
     
-    def _format_papers(self, keyword: str, papers) -> str:
+    @staticmethod
+    def _markdown_table_cell(text: str) -> str:
+        """避免表格列被 | 或换行打断。"""
+        return " ".join(text.replace("\n", " ").split()).replace("|", "\\|")
+
+    def _format_papers(self, keyword: str, papers: List[Paper]) -> str:
         """Format paper list for README"""
         lines = [f"## {keyword}\n"]
-        lines.append("| 标题 | 评分 | Gemini 摘要 | 原始摘要 |")
-        lines.append("|------|------|-------------|----------|")
+        lines.append("| 标题 | 评分 | Gemini 摘要 | 评分理由 | 原始摘要 |")
+        lines.append("|------|------|-------------|----------|----------|")
         
         for paper in papers:
-            title = f"**[{paper.title}]({paper.link})**"
-            score = f"⭐ {paper.score:.0f}/100"
-            
-            summary = paper.summary.replace("\n", " ")
-            
-            lines.append(
-                f"| {title} | {score} | {summary} | "
-                f"<details><summary>展开</summary>{paper.abstract}</details> |"
+            title = (
+                f"**[{self._markdown_table_cell(paper.title)}]({paper.link})**"
             )
+            score = f"⭐ {paper.score:.0f}/100"
+            summary = self._markdown_table_cell(paper.summary)
+            reason = self._markdown_table_cell(paper.reason) if paper.reason else ""
+            abstract_safe = html.escape(
+                " ".join(paper.abstract.replace("\n", " ").split()),
+                quote=False,
+            )
+            details = (
+                f"<details><summary>展开</summary>{abstract_safe}</details>"
+            )
+            lines.append(f"| {title} | {score} | {summary} | {reason} | {details} |")
         
         return "\n".join(lines) + "\n\n"
     
-    def _format_papers_detail(self, keyword: str, papers) -> str:
+    def _format_papers_detail(self, keyword: str, papers: List[Paper]) -> str:
         """Format detailed paper list"""
         lines = [f"## {keyword}\n"]
         
@@ -192,11 +206,16 @@ class DailyPapers:
             lines.append(f"- **AI摘要**: {paper.summary}")
             
             # Dropdown for original abstract
-            lines.append(f"<details>")
-            lines.append(f"<summary>📄 原始摘要</summary>")
-            lines.append(f"")
-            lines.append(f"{paper.abstract}")
-            lines.append(f"</details>")
+            lines.append("<details>")
+            lines.append("<summary>原始摘要</summary>")
+            lines.append("")
+            lines.append(
+                html.escape(
+                    " ".join(paper.abstract.replace("\n", " ").split()),
+                    quote=False,
+                )
+            )
+            lines.append("</details>")
             
             # Scoring reason
             if paper.reason:
