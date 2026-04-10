@@ -146,7 +146,6 @@ class DailyPapers:
             "- **🎯 智能评分** - 四维度评估（0-100分）\n"
             "- **💡 AI摘要** - 自动生成论文核心贡献摘要\n\n"
             f"**最后更新**: {current_date}\n\n"
-            "[📖 查看历史论文](papers/)\n\n"
             "---\n\n"
             f"{marker}\n\n{papers_content}"
         )

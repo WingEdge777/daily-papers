@@ -22,6 +22,10 @@
 
 📖 **详细设置请查看 [SETUP.md](SETUP.md)**
 
+## 📚 历史论文
+
+查看所有历史精选论文：[papers](papers/)
+
 ---
 
 <!-- PAPERS_START -->
