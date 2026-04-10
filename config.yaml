@@ -28,7 +28,7 @@ llm:
   google:
     provider: "google"
     api_key: "${GOOGLE_AI_API_KEY}"
-    model: "gemini-1.5-flash"
+    model: "gemini-flash-latest"
     base_url: "https://generativelanguage.googleapis.com/v1beta"
 
 # 输出配置
