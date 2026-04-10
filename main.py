@@ -112,7 +112,18 @@ class DailyPapers:
         """对论文进行评分"""
         logger.info(f"Scoring {len(papers)} papers...")
         
+        last_request_time = 0
+        min_interval = 4.1  # 每分钟最多15次，间隔4秒，加0.1秒缓冲
+        
         for i, paper in enumerate(papers, 1):
+            # 确保请求间隔
+            current_time = time.time()
+            elapsed = current_time - last_request_time
+            if elapsed < min_interval and last_request_time > 0:
+                wait_time = min_interval - elapsed
+                logger.debug(f"Waiting {wait_time:.1f}s to maintain rate limit...")
+                time.sleep(wait_time)
+            
             logger.info(f"[{i}/{len(papers)}] Scoring: {paper.title[:50]}...")
             
             score, summary, reason = self.llm_scorer.score_paper(
@@ -120,12 +131,11 @@ class DailyPapers:
                 paper.abstract
             )
             
+            last_request_time = time.time()
+            
             paper.score = score
             paper.summary = summary
             paper.reason = reason
-            
-            # 避免API限流
-            time.sleep(4)
         
         return papers
     
