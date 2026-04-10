@@ -1,17 +1,22 @@
-# 研究领域关键词
+# 研究领域关键词（用于LLM分类）
 keywords:
-  - "Computer Vision"
-  - "Object Detection"
-  - "Diffusion Models"
+  - "Agent"
   - "Large Language Models"
+  - "Computer Vision"
+  - "Diffusion Models"
   - "Vision Language Models"
   - "Multimodal"
   - "Image Generation"
   - "Video Generation"
+  - "Distributed Computing"
+  - "Operating Systems"
+  - "Information Retrieval"
+  - "Machine Learning"
+  - "Natural Language Processing"
 
 # ArXiv API配置
 arxiv:
-  max_results: 5
+  max_results: 200
   base_url: "http://export.arxiv.org/api/query"
   categories:
     - "cs.CV"
@@ -19,6 +24,10 @@ arxiv:
     - "cs.AI"
     - "cs.LG"
     - "cs.MM"
+    - "cs.DC"
+    - "cs.OS"
+    - "cs.IR"
+    - "cs.MA"
 
 # LLM配置
 llm:

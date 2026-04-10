@@ -195,7 +195,7 @@ class DailyPapers:
             lines.append(f"<details>")
             lines.append(f"<summary>📄 原始摘要</summary>")
             lines.append(f"")
-            lines.append(f"{paper.abstract[:500]}{'...' if len(paper.abstract) > 500 else ''}")
+            lines.append(f"{paper.abstract}")
             lines.append(f"</details>")
             
             # 评分理由
