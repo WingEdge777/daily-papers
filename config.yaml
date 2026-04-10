@@ -12,7 +12,7 @@ keywords:
 
 # ArXiv API配置
 arxiv:
-  max_results: 30
+  max_results: 15
   target_categories:
     - "cs.CV"      # Computer Vision
     - "cs.CL"      # Computation and Language (NLP/LLM)

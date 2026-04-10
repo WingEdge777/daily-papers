@@ -79,7 +79,12 @@ class LLMScorer:
     
     def _call_google(self, prompt: str) -> Dict:
         """调用 Google AI Studio API"""
-        url = f"{self.base_url}/models/{self.model}:generateContent?key={self.api_key}"
+        url = f"{self.base_url}/models/{self.model}:generateContent"
+        
+        headers = {
+            "Content-Type": "application/json",
+            "X-goog-api-key": self.api_key,
+        }
         
         data = {
             "contents": [{
@@ -98,6 +103,7 @@ class LLMScorer:
             try:
                 response = requests.post(
                     url,
+                    headers=headers,
                     json=data,
                     timeout=60
                 )

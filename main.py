@@ -125,7 +125,7 @@ class DailyPapers:
             paper.reason = reason
             
             # 避免API限流
-            time.sleep(1)
+            time.sleep(4)
         
         return papers
     
