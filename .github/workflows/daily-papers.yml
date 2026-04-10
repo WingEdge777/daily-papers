@@ -1,0 +1,62 @@
+name: Daily Papers
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # UTC 0:00 = 北京时间 8:00
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  fetch-papers:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run DailyPapers
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+        run: |
+          python main.py
+      
+      - name: Create Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const issueContent = fs.readFileSync('.github/ISSUE_TEMPLATE.md', 'utf8');
+            
+            // 提取标题（第一行 --- 之后的 title: 行）
+            const titleMatch = issueContent.match(/title:\s*(.+)/);
+            const title = titleMatch ? titleMatch[1] : '精选论文 - ' + new Date().toLocaleDateString('zh-CN');
+            
+            // 提取正文（第二个 --- 之后的内容）
+            const bodyParts = issueContent.split('---');
+            const body = bodyParts.length > 2 ? bodyParts.slice(2).join('---').trim() : issueContent;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['documentation', 'daily-papers']
+            });
+      
+      - name: Commit and push README
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update daily papers - $(date +'%Y-%m-%d')"
+          git push

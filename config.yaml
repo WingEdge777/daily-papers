@@ -1,0 +1,50 @@
+# 研究领域关键词
+keywords:
+  # CV领域
+  - "Computer Vision"
+  - "Object Detection"
+  - "Diffusion Models"
+  
+  # LLM领域
+  - "Large Language Models"
+  - "Vision Language Models"
+  - "Multimodal"
+
+# ArXiv API配置
+arxiv:
+  max_results: 30
+  target_categories:
+    - "cs.CV"      # Computer Vision
+    - "cs.CL"      # Computation and Language (NLP/LLM)
+    - "cs.AI"      # Artificial Intelligence
+    - "cs.LG"      # Machine Learning
+    - "cs.MM"      # Multimedia
+
+llm:
+  min_score: 7.0
+  max_papers_per_keyword: 5
+  
+  # OpenRouter配置
+  openrouter:
+    api_key: "${OPENROUTER_API_KEY}"
+    
+    # 模型选择（三选一）:
+    # 1. "auto" - 自动选择最热门的免费模型（推荐）
+    # 2. 具体模型ID - 使用指定模型
+    # 3. 留空 - 等同于 "auto"
+    model: "auto"
+    
+    # 常用免费模型（仅供参考，使用 model: "auto" 会自动选择最优）:
+    # - nvidia/nemotron-3-super           # 使用量最高
+    # - google/gemma-4-31b                # 最新(2026.4.3)
+    # - meta-llama/llama-3.3-70b-instruct # Meta官方
+    # - qwen/qwen3-next-80b-a3b-instruct  # Qwen3
+    
+    base_url: "https://openrouter.ai/api/v1"
+
+# 输出配置
+output:
+  issues_results: 5
+  show_summary: true
+
+timezone: "Asia/Shanghai"
