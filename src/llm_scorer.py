@@ -47,11 +47,12 @@ class LLMScorer:
             # 测试每个模型是否能正常使用
             test_prompt = "Reply with: OK"
             
-            # 优先级列表（根据已知配额调整）
+            # 优先级列表（根据配额和可用性调整）
             priority_models = [
-                "gemini-2.5-flash",
-                "gemini-2.0-flash", 
-                "gemini-flash-latest",
+                "gemini-3.1-flash-lite-preview",  # 15 RPM, 250K daily
+                "gemini-2.5-flash-lite",          # 10 RPM, 250K daily
+                "gemini-2.5-flash",               # 可能限流
+                "gemini-2.0-flash",               
             ]
             
             for model in priority_models:
