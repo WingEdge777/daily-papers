@@ -1,12 +1,12 @@
 # Daily Papers - AI精选论文
 
-**自动抓取ArXiv论文，使用LLM评分筛选高质量内容**
+**自动抓取ArXiv论文，使用 Google Gemini 评分筛选高质量内容**
 
 专为 **CV（计算机视觉）** 和 **LLM（大语言模型）** 研究者设计
 
 ## ✨ 特性
 
-- **🆓 完全免费** - 自动选择 OpenRouter 最热门的免费模型
+- **🆓 完全免费** - 使用 Google AI Studio 免费 API（每天 1500 次请求）
 - **🤖 自动运行** - GitHub Actions 每天自动运行，无需手动操作
 - **📧 自动通知** - 创建 Issue 自动通知订阅者
 - **🎯 智能评分** - 四维度评估：创新性、实用性、严谨性、清晰度
@@ -16,7 +16,13 @@
 
 ### 1. Fork 本仓库
 
-### 2. 配置 API 密钥
+### 2. 获取 Google AI API Key
+
+1. 访问 https://aistudio.google.com/apikey
+2. 点击 **Create API Key**
+3. 复制生成的 API Key
+
+### 3. 配置 GitHub Secrets
 
 进入你的仓库 → Settings → Secrets and variables → Actions → New repository secret
 
@@ -24,7 +30,7 @@
 
 | Secret 名称 | 说明 | 获取地址 |
 |------------|------|---------|
-| `OPENROUTER_API_KEY` | OpenRouter API密钥 | https://openrouter.ai/keys |
+| `GOOGLE_AI_API_KEY` | Google AI Studio API密钥 | https://aistudio.google.com/apikey |
 
 ### 3. 启用 GitHub Actions
 
@@ -44,21 +50,11 @@
 
 **完全免费！**
 
-系统会自动从 OpenRouter 选择最热门的免费模型：
-
-| 模型 | 价格 | 特点 |
-|------|------|------|
-| NVIDIA Nemotron 3 Super | **$0** | 使用量最高(563B tokens)，262K上下文 |
-| Google Gemma 4 31B | **$0** | 最新(2026.4.3)，262K上下文 |
-| Meta Llama 3.3 70B | **$0** | Meta官方，稳定可靠 |
-| Qwen3 Next 80B | **$0** | Qwen3最新版本 |
+使用 Google AI Studio 免费 API：
+- **Gemini 2.0 Flash** - 每天 1500 次免费请求
+- **Gemini 1.5 Flash** - 每天 1500 次免费请求
 
 **每日运行成本：$0** ✅
-
-**自动模型选择：**
-- 每次运行时自动获取 OpenRouter 免费模型列表
-- 按使用量排序，选择最热门的模型
-- 无需手动配置，始终保持最优选择
 
 ## 📝 配置说明
 
@@ -84,12 +80,10 @@ keywords:
 ```yaml
 llm:
   min_score: 7.0             # 最低评分（1-10）
-  max_papers_per_keyword: 10 # 每个关键词保留论文数
+  max_papers_per_keyword: 5  # 每个关键词保留论文数
   
-  openrouter:
-    model: "auto"  # 自动选择最热门的免费模型
-    # 或指定模型：
-    # model: "nvidia/nemotron-3-super"
+  google:
+    model: "gemini-2.0-flash"  # 可选: gemini-1.5-flash, gemini-1.5-pro
 ```
 
 ## 🔄 工作流程
@@ -97,11 +91,9 @@ llm:
 ```
 GitHub Actions 定时触发（每天）
     ↓
-获取 OpenRouter 最热门免费模型
-    ↓
 拉取 ArXiv 最新论文
     ↓
-LLM 评分（创新性、实用性、严谨性、清晰度）
+Google Gemini 评分（创新性、实用性、严谨性、清晰度）
     ↓
 过滤低分论文（score < 7.0）
     ↓
@@ -154,8 +146,8 @@ keywords:
 
 ```yaml
 llm:
-  openrouter:
-    model: "google/gemma-4-31b"  # 指定模型
+  google:
+    model: "gemini-1.5-pro"  # 更强大的模型
 ```
 
 ### 修改运行时间
@@ -192,13 +184,10 @@ daily-papers/
 pip install -r requirements.txt
 
 # 设置 API 密钥
-export OPENROUTER_API_KEY="sk-or-xxxxx"
+export GOOGLE_AI_API_KEY="your-api-key"
 
 # 运行
 python main.py
-
-# 测试
-pytest tests/ -v
 ```
 
 ## 📖 相关文档

@@ -24,23 +24,12 @@ llm:
   min_score: 7.0
   max_papers_per_keyword: 5
   
-  # OpenRouter配置
-  openrouter:
-    api_key: "${OPENROUTER_API_KEY}"
-    
-    # 模型选择（三选一）:
-    # 1. "auto" - 自动选择最热门的免费模型（推荐）
-    # 2. 具体模型ID - 使用指定模型
-    # 3. 留空 - 等同于 "auto"
-    model: "auto"
-    
-    # 常用免费模型（仅供参考，使用 model: "auto" 会自动选择最优）:
-    # - nvidia/nemotron-3-super           # 使用量最高
-    # - google/gemma-4-31b                # 最新(2026.4.3)
-    # - meta-llama/llama-3.3-70b-instruct # Meta官方
-    # - qwen/qwen3-next-80b-a3b-instruct  # Qwen3
-    
-    base_url: "https://openrouter.ai/api/v1"
+  # Google AI Studio 配置
+  google:
+    provider: "google"
+    api_key: "${GOOGLE_AI_API_KEY}"
+    model: "gemini-2.0-flash"
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
 
 # 输出配置
 output:

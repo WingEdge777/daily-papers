@@ -6,14 +6,12 @@
 
 | Secret 名称 | 说明 | 获取方式 |
 |------------|------|---------|
-| `OPENROUTER_API_KEY` | OpenRouter API密钥 | [获取地址](https://openrouter.ai/keys) |
+| `GOOGLE_AI_API_KEY` | Google AI Studio API密钥 | [获取地址](https://aistudio.google.com/apikey) |
 
-**获取 OpenRouter API Key：**
-1. 访问 https://openrouter.ai
-2. 注册账号（支持 GitHub / Google 登录）
-3. 进入 Settings → Keys
-4. 点击 **Create Key**
-5. 复制密钥（格式：`sk-or-...`）
+**获取 Google AI API Key：**
+1. 访问 https://aistudio.google.com/apikey
+2. 点击 **Create API Key**
+3. 复制生成的 API Key
 
 ## 2. 启用 GitHub Actions
 
@@ -55,13 +53,9 @@ schedule:
 - `'0 1 * * *'` - UTC 1:00（北京时间 9:00）
 - `'0 23 * * *'` - UTC 23:00（北京时间次日 7:00）
 
-## 7. 自动模型选择
+## 7. 模型选择
 
-系统会自动选择 OpenRouter 最热门的免费模型：
-
-- 每次运行时自动获取免费模型列表
-- 按使用量排序，选择最热门的模型
-- 无需手动配置
+默认使用 **Gemini 2.0 Flash**，免费且快速。
 
 **手动指定模型：**
 
@@ -69,15 +63,20 @@ schedule:
 
 ```yaml
 llm:
-  openrouter:
-    model: "google/gemma-4-31b"  # 指定模型
+  google:
+    model: "gemini-1.5-pro"  # 更强大的模型
 ```
+
+可用模型：
+- `gemini-2.0-flash` - 最新，快速（推荐）
+- `gemini-1.5-flash` - 稳定，快速
+- `gemini-1.5-pro` - 更强大，稍慢
 
 ## 故障排查
 
 ### API Key 无效
-- 检查 Secret 名称是否正确（`OPENROUTER_API_KEY`，区分大小写）
-- 检查 API Key 是否有效（在 OpenRouter 控制台测试）
+- 检查 Secret 名称是否正确（`GOOGLE_AI_API_KEY`，区分大小写）
+- 检查 API Key 是否有效（在 Google AI Studio 测试）
 
 ### 没有论文输出
 - 检查 ArXiv API 是否可访问
@@ -93,13 +92,13 @@ llm:
 - 检查邮箱垃圾邮件文件夹
 
 ### 模型选择失败
-- 系统会自动 fallback 到默认模型：`nvidia/nemotron-3-super`
-- 查看日志中的 "Auto-selected model" 信息
+- 检查 Google AI API Key 是否有效
+- 查看日志中的错误信息
 
 ## 成本
 
 **完全免费！**
 
-- OpenRouter 有多个永久免费的模型
-- 系统自动选择最热门的免费模型
+- Google AI Studio 每天 1500 次免费请求
+- Gemini 2.0 Flash 快速且免费
 - 每日运行成本：$0

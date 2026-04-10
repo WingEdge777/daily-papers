@@ -35,7 +35,7 @@ class ArxivConfig(BaseModel):
 class LLMConfig(BaseModel):
     min_score: float = 7.0
     max_papers_per_keyword: int = 10
-    openrouter: dict = {}
+    google: dict = {}
 
 
 class OutputConfig(BaseModel):

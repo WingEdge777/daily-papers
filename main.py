@@ -28,7 +28,7 @@ class DailyPapers:
     
     def _init_llm_scorer(self) -> LLMScorer:
         """初始化LLM评分器"""
-        return LLMScorer(config=self.config.llm.openrouter)
+        return LLMScorer(config=self.config.llm.google)
     
     def run(self) -> None:
         """主流程"""

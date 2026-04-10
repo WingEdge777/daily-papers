@@ -6,15 +6,14 @@ from email.utils import parsedate_to_datetime
 from typing import Dict, Optional, Tuple
 import requests
 from .logger import logger
-from .model_selector import ModelSelector
 
 
 class LLMScorer:
     """LLM论文评分器"""
     
     def __init__(self, config: Optional[Dict] = None):
-        self.provider = "openrouter"
         self.config = config or {}
+        self.provider = self.config.get("provider", "google")
         self.api_key = self._get_api_key()
         self.model = self._get_model()
         self.base_url = self._get_base_url()
@@ -27,17 +26,11 @@ class LLMScorer:
         return key
     
     def _get_model(self) -> str:
-        """获取模型，支持自动选择最热门的免费模型"""
-        model = self.config.get("model")
-        
-        if model and model != "auto":
-            return model
-        
-        # 自动选择最热门的免费模型
-        return ModelSelector.get_best_free_model(self.api_key)
+        model = self.config.get("model", "gemini-2.0-flash")
+        return model if model != "auto" else "gemini-2.0-flash"
     
     def _get_base_url(self) -> str:
-        return self.config.get("base_url", "https://openrouter.ai/api/v1")
+        return self.config.get("base_url", "https://generativelanguage.googleapis.com/v1beta")
     
     def score_paper(self, title: str, abstract: str) -> Tuple[float, str]:
         """
@@ -79,6 +72,68 @@ class LLMScorer:
     
     def _call_llm(self, prompt: str) -> Dict:
         """调用LLM API"""
+        if self.provider == "google":
+            return self._call_google(prompt)
+        else:
+            return self._call_openai_compatible(prompt)
+    
+    def _call_google(self, prompt: str) -> Dict:
+        """调用 Google AI Studio API"""
+        url = f"{self.base_url}/models/{self.model}:generateContent?key={self.api_key}"
+        
+        data = {
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }],
+            "generationConfig": {
+                "temperature": 0.3,
+                "maxOutputTokens": 200
+            }
+        }
+        
+        max_retries = 3
+        response = None
+        
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    url,
+                    json=data,
+                    timeout=60
+                )
+                
+                if response.status_code == 429:
+                    retry_after = self._parse_retry_after(response.headers.get("Retry-After"), 60)
+                    logger.warning(f"Rate limited, waiting {retry_after}s (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(retry_after)
+                    continue
+                
+                if response.status_code == 400:
+                    error_detail = response.text
+                    logger.error(f"Bad Request (400): {error_detail}")
+                    raise requests.exceptions.HTTPError(f"400 Bad Request: {error_detail}")
+                
+                response.raise_for_status()
+                return response.json()
+                
+            except requests.exceptions.HTTPError as e:
+                if attempt < max_retries - 1 and response and response.status_code in [429, 503, 502]:
+                    wait_time = 2 ** attempt * 5
+                    logger.warning(f"Request failed, retrying in {wait_time}s... ({e})")
+                    time.sleep(wait_time)
+                    continue
+                raise
+            except requests.exceptions.Timeout:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Timeout, retrying... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(5)
+                    continue
+                raise
+        
+        raise Exception("Max retries exceeded")
+    
+    def _call_openai_compatible(self, prompt: str) -> Dict:
+        """调用 OpenAI 兼容 API (OpenRouter)"""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -97,7 +152,6 @@ class LLMScorer:
             "max_tokens": 200
         }
         
-        # 重试机制
         max_retries = 3
         response = None
         
@@ -106,7 +160,7 @@ class LLMScorer:
                 response = requests.post(
                     f"{self.base_url}/chat/completions",
                     headers=headers,
-                    json=data,  # 使用 json 参数，requests 会自动处理
+                    json=data,
                     timeout=60
                 )
                 
@@ -116,7 +170,6 @@ class LLMScorer:
                     time.sleep(retry_after)
                     continue
                 
-                # 如果是 400 错误，打印详细信息
                 if response.status_code == 400:
                     error_detail = response.text
                     logger.error(f"Bad Request (400): {error_detail}")
@@ -127,7 +180,7 @@ class LLMScorer:
                 
             except requests.exceptions.HTTPError as e:
                 if attempt < max_retries - 1 and response and response.status_code in [429, 503, 502]:
-                    wait_time = 2 ** attempt * 5  # 指数退避: 5s, 10s, 20s
+                    wait_time = 2 ** attempt * 5
                     logger.warning(f"Request failed, retrying in {wait_time}s... ({e})")
                     time.sleep(wait_time)
                     continue
@@ -165,7 +218,10 @@ class LLMScorer:
     def _parse_response(self, response: Dict) -> Tuple[float, str]:
         """解析LLM响应"""
         try:
-            content = response["choices"][0]["message"]["content"]
+            if self.provider == "google":
+                content = response["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                content = response["choices"][0]["message"]["content"]
             
             # 提取JSON
             content = content.strip()
