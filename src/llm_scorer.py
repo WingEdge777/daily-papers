@@ -8,7 +8,7 @@ from .logger import logger
 
 
 class LLMScorer:
-    """LLM论文评分器"""
+    """LLM paper scorer"""
     
     def __init__(self, config: Optional[Dict] = None):
         self.config = config or {}
@@ -52,7 +52,7 @@ class LLMScorer:
         return self._select_best_model()
     
     def _select_best_model(self, excluded: Optional[Set[str]] = None) -> str:
-        """自动选择最佳可用模型"""
+        """Auto-select best available model"""
         excluded = excluded or set()
         
         try:
@@ -84,7 +84,7 @@ class LLMScorer:
             return self.fallback_model
     
     def _test_model(self, model: str, prompt: str) -> bool:
-        """测试模型是否可用"""
+        """Test if model is available"""
         try:
             url = f"{self.base_url}/models/{model}:generateContent"
             headers = {
@@ -110,7 +110,7 @@ class LLMScorer:
             return False
     
     def _switch_model(self) -> Optional[str]:
-        """切换到下一个可用模型"""
+        """Switch to next available model"""
         self.rate_limited_models.add(self.model)
         
         remaining = [m for m in self.priority_models if m not in self.rate_limited_models]
@@ -126,10 +126,10 @@ class LLMScorer:
     
     def score_paper(self, title: str, abstract: str, keywords: List[str]) -> Tuple[float, str, str, str]:
         """
-        对论文进行评分和分类
+        Score and categorize paper
         
         Returns:
-            (score, summary, reason, category): 评分(0-100)、摘要、评分理由、匹配的分类
+            (score, summary, reason, category): score (0-100), summary, reason, matched category
         """
         prompt = self._build_prompt(title, abstract, keywords)
         
@@ -144,7 +144,7 @@ class LLMScorer:
     
     def _build_prompt(self, title: str, abstract: str, keywords: List[str]) -> str:
         keywords_str = "、".join(keywords)
-        return f"""请对这篇学术论文进行评分、总结和分类。
+        return f"""请对这篇学术论文进行严格评分、总结和分类。
 
 标题: {title}
 
@@ -152,11 +152,36 @@ class LLMScorer:
 
 可选分类: {keywords_str}
 
-请从以下角度评估（每项0-25分）：
-1. 创新性：是否提出新方法/新视角
-2. 实用性：是否有实际应用价值
-3. 严谨性：方法是否合理，实验是否充分
-4. 清晰度：写作是否清晰易懂
+请从以下角度评估（每项0-25分，请严格评分，大部分论文应在60-80分区间）：
+
+1. 创新性（0-25分）：
+   - 20-25分：重大突破或全新方法
+   - 15-19分：有意义的改进
+   - 10-14分：常规应用或小改进
+   - 0-9分：无明显创新
+
+2. 实用性（0-25分）：
+   - 20-25分：有重要应用价值
+   - 15-19分：有一定应用潜力
+   - 10-14分：应用场景有限
+   - 0-9分：缺乏实用价值
+
+3. 严谨性（0-25分）：
+   - 20-25分：方法合理，实验充分
+   - 15-19分：方法基本合理，实验尚可
+   - 10-14分：存在明显不足
+   - 0-9分：方法有严重缺陷
+
+4. 清晰度（0-25分）：
+   - 20-25分：表述清晰，逻辑严密
+   - 15-19分：基本清晰
+   - 10-14分：表述一般
+   - 0-9分：难以理解
+
+评分指导：
+- 只有少数优秀论文才能达到85分以上
+- 大部分合格论文应在60-80分区间
+- 质量一般或有明显缺陷的论文应低于60分
 
 总分 = 四项得分之和（0-100分）
 
@@ -169,7 +194,7 @@ class LLMScorer:
 }}"""
     
     def _call_api(self, prompt: str) -> Dict:
-        """调用 Google AI Studio API"""
+        """Call Google AI Studio API"""
         
         for retry in range(self.max_retries):
             url = f"{self.base_url}/models/{self.model}:generateContent"
@@ -235,7 +260,7 @@ class LLMScorer:
         raise Exception("Max retries exceeded")
     
     def _parse_response(self, response: Dict) -> Tuple[float, str, str, str]:
-        """解析API响应"""
+        """Parse API response"""
         content = ""
         try:
             content = response["candidates"][0]["content"]["parts"][0]["text"]

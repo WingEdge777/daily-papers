@@ -9,7 +9,7 @@ from .logger import logger
 
 
 class ArxivClient:
-    """ArXiv API客户端"""
+    """ArXiv API client"""
     
     def __init__(
         self,
@@ -22,7 +22,7 @@ class ArxivClient:
         self.categories = categories or ["cs.CV", "cs.CL", "cs.AI", "cs.LG", "cs.MM"]
     
     def fetch_papers(self) -> List[Paper]:
-        """获取最新论文"""
+        """Fetch latest papers"""
         try:
             query = " OR ".join([f"cat:{cat}" for cat in self.categories])
             params = {
@@ -51,7 +51,7 @@ class ArxivClient:
             return []
     
     def _parse_entry(self, entry: dict) -> Paper:
-        """解析论文条目"""
+        """Parse paper entry"""
         return Paper(
             title=self._clean_text(entry.get('title', '')),
             authors=[self._clean_text(a.get('name', '')) for a in entry.get('authors', [])],

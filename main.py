@@ -12,13 +12,13 @@ from src.logger import logger
 
 
 class DailyPapers:
-    """简化版论文抓取系统"""
+    """Simplified paper fetching system"""
     
     def __init__(self, config_path: str = "config.yaml"):
         self.config: Config = ConfigManager(config_path).load()
         self.timezone = pytz.timezone(self.config.timezone)
         
-        # 初始化客户端
+        # Initialize clients
         self.arxiv_client = ArxivClient(
             max_results=self.config.arxiv.max_results,
             base_url=self.config.arxiv.base_url,
@@ -28,11 +28,11 @@ class DailyPapers:
         self.llm_scorer = self._init_llm_scorer()
     
     def _init_llm_scorer(self) -> LLMScorer:
-        """初始化LLM评分器"""
+        """Initialize LLM scorer"""
         return LLMScorer(config=self.config.llm.google)
     
     def run(self) -> None:
-        """主流程"""
+        """Main workflow"""
         logger.info("=" * 50)
         logger.info("Starting DailyPapers")
         logger.info("=" * 50)
@@ -40,20 +40,20 @@ class DailyPapers:
         try:
             current_date = datetime.now(self.timezone).strftime("%Y-%m-%d")
             
-            # 1. 获取最新论文
+            # 1. Fetch latest papers
             all_papers = self.arxiv_client.fetch_papers()
             logger.info(f"Total papers: {len(all_papers)}")
             
-            # 2. LLM评分和分类
+            # 2. LLM scoring and categorization
             scored_papers = self._score_papers(all_papers)
             
-            # 3. 过滤低分论文
+            # 3. Filter low-scoring papers
             filtered_papers = [
                 p for p in scored_papers
                 if p.score >= self.config.llm.min_score and p.category
             ]
             
-            # 4. 按分数排序
+            # 4. Sort by score
             filtered_papers = sorted(
                 filtered_papers,
                 key=lambda p: p.score,
@@ -65,7 +65,7 @@ class DailyPapers:
                 f"(score >= {self.config.llm.min_score})"
             )
             
-            # 5. 按分类分组输出
+            # 5. Group output by category
             papers_content = ""
             daily_content = self._build_daily_header(current_date)
             
@@ -79,7 +79,7 @@ class DailyPapers:
                     papers_content += self._format_papers(keyword, keyword_papers)
                     daily_content += self._format_papers_detail(keyword, keyword_papers)
             
-            # 写入文件
+            # Write files
             readme_content = self._build_readme(current_date, papers_content)
             self._write_files(readme_content, daily_content, current_date)
             
@@ -94,7 +94,7 @@ class DailyPapers:
             sys.exit(1)
     
     def _score_papers(self, papers):
-        """对论文进行评分和分类"""
+        """Score and categorize papers"""
         logger.info(f"Scoring {len(papers)} papers...")
         
         last_request_time = 0
@@ -155,7 +155,7 @@ class DailyPapers:
         return f"# 精选论文 - {current_date}\n\n"
     
     def _format_papers(self, keyword: str, papers) -> str:
-        """格式化论文列表（README）"""
+        """Format paper list for README"""
         lines = [f"## {keyword}\n"]
         lines.append("| 标题 | 评分 | 摘要 | 日期 |")
         lines.append("|------|------|------|------|")
@@ -173,7 +173,7 @@ class DailyPapers:
         return "\n".join(lines) + "\n\n"
     
     def _format_papers_detail(self, keyword: str, papers) -> str:
-        """格式化论文列表（详细版）"""
+        """Format detailed paper list"""
         lines = [f"## {keyword}\n"]
         
         for i, paper in enumerate(papers, 1):
@@ -191,14 +191,14 @@ class DailyPapers:
             lines.append(f"- **标签**: {tags}")
             lines.append(f"- **AI摘要**: {paper.summary}")
             
-            # 下拉展示原始摘要
+            # Dropdown for original abstract
             lines.append(f"<details>")
             lines.append(f"<summary>📄 原始摘要</summary>")
             lines.append(f"")
             lines.append(f"{paper.abstract}")
             lines.append(f"</details>")
             
-            # 评分理由
+            # Scoring reason
             if paper.reason:
                 lines.append(f"- **评分理由**: {paper.reason}")
             
@@ -207,12 +207,12 @@ class DailyPapers:
         return "\n".join(lines) + "\n"
     
     def _write_files(self, readme: str, daily: str, date: str):
-        """写入文件"""
-        # 写入 README
+        """Write output files"""
+        # Write README
         with open("README.md", "w", encoding='utf-8') as f:
             f.write(readme)
         
-        # 写入每日文件
+        # Write daily file
         papers_dir = Path("papers")
         papers_dir.mkdir(exist_ok=True)
         
