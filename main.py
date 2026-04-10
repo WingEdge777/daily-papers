@@ -21,7 +21,8 @@ class DailyPapers:
         # 初始化客户端
         self.arxiv_client = ArxivClient(
             max_results=self.config.arxiv.max_results,
-            categories=self.config.arxiv.target_categories
+            base_url=self.config.arxiv.base_url,
+            categories=self.config.arxiv.categories
         )
         
         self.llm_scorer = self._init_llm_scorer()
@@ -97,7 +98,7 @@ class DailyPapers:
         logger.info(f"Scoring {len(papers)} papers...")
         
         last_request_time = 0
-        min_interval = 4.1
+        min_interval = self.config.llm.rate_limit_interval
         
         for i, paper in enumerate(papers, 1):
             current_time = time.time()

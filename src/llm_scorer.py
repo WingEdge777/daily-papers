@@ -2,7 +2,7 @@ import os
 import json
 import re
 import time
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 import requests
 from .logger import logger
 
@@ -13,8 +13,30 @@ class LLMScorer:
     def __init__(self, config: Optional[Dict] = None):
         self.config = config or {}
         self.api_key = self._get_api_key()
+        self.base_url = self._get("base_url", "https://generativelanguage.googleapis.com/v1beta")
+        
+        self.temperature = self._get("temperature", 0.3)
+        self.max_output_tokens = self._get("max_output_tokens", 2048)
+        self.timeout = self._get("timeout", 60)
+        self.max_retries = self._get("max_retries", 3)
+        self.retry_delay_429 = self._get("retry_delay_429", 10)
+        self.retry_delay_503 = self._get("retry_delay_503", 10)
+        self.retry_delay_timeout = self._get("retry_delay_timeout", 5)
+        self.fallback_model = self._get("fallback_model", "gemini-2.5-flash")
+        self.priority_models = self._get("priority_models", [
+            "gemini-3.1-flash-lite-preview",
+            "gemini-3.1-flash-lite",
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemma-4-31B",
+        ])
+        
         self.model = self._get_model()
-        self.base_url = self._get_base_url()
+        self.rate_limited_models: Set[str] = set()
+    
+    def _get(self, key: str, default):
+        return self.config.get(key, default)
     
     def _get_api_key(self) -> str:
         key = self.config.get("api_key", "")
@@ -24,45 +46,33 @@ class LLMScorer:
         return key
     
     def _get_model(self) -> str:
-        """获取模型，自动选择可用的 Flash 模型"""
         model = self.config.get("model")
         if model and model != "auto":
             return model
-        
         return self._select_best_model()
     
-    def _select_best_model(self) -> str:
+    def _select_best_model(self, excluded: Optional[Set[str]] = None) -> str:
         """自动选择最佳可用模型"""
+        excluded = excluded or set()
+        
         try:
-            url = f"{self._get_base_url()}/models?key={self.api_key}"
+            url = f"{self.base_url}/models?key={self.api_key}"
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             
             models = response.json().get("models", [])
             available_models = {m["name"].replace("models/", ""): m for m in models}
             
-            # 测试每个模型是否能正常使用
             test_prompt = "Reply with: OK"
             
-            # 优先级列表 - 根据你的配额调整顺序
-            # 查看配额: https://aistudio.google.com/rate-limit?timeRange=last-28-days
-            priority_models = [
-                "gemini-3.1-flash-lite-preview",  # 15 RPM, 250K daily
-                "gemini-2.5-flash-lite",          # 10 RPM, 250K daily
-                "gemini-2.5-flash",               # 可能限流
-                "gemini-2.0-flash",               
-            ]
-            
-            for model in priority_models:
-                if model in available_models:
-                    # 测试模型是否可用
+            for model in self.priority_models:
+                if model in available_models and model not in excluded:
                     if self._test_model(model, test_prompt):
                         logger.info(f"Auto-selected model: {model}")
                         return model
             
-            # 如果优先模型都不可用，尝试其他 flash 模型
             for name, m in available_models.items():
-                if "flash" in name.lower() and "generateContent" in m.get("supportedGenerationMethods", []):
+                if name not in excluded and "flash" in name.lower() and "generateContent" in m.get("supportedGenerationMethods", []):
                     if self._test_model(name, test_prompt):
                         logger.info(f"Auto-selected model: {name}")
                         return name
@@ -70,13 +80,13 @@ class LLMScorer:
             raise Exception("No suitable model found")
             
         except Exception as e:
-            logger.warning(f"Failed to auto-select model: {e}, using gemini-2.5-flash")
-            return "gemini-2.5-flash"
+            logger.warning(f"Failed to auto-select model: {e}, using {self.fallback_model}")
+            return self.fallback_model
     
     def _test_model(self, model: str, prompt: str) -> bool:
         """测试模型是否可用"""
         try:
-            url = f"{self._get_base_url()}/models/{model}:generateContent"
+            url = f"{self.base_url}/models/{model}:generateContent"
             headers = {
                 "Content-Type": "application/json",
                 "X-goog-api-key": self.api_key,
@@ -99,10 +109,22 @@ class LLMScorer:
             logger.debug(f"Model {model} test failed: {e}")
             return False
     
-    def _get_base_url(self) -> str:
-        return self.config.get("base_url", "https://generativelanguage.googleapis.com/v1beta")
+    def _switch_model(self) -> Optional[str]:
+        """切换到下一个可用模型"""
+        self.rate_limited_models.add(self.model)
+        
+        remaining = [m for m in self.priority_models if m not in self.rate_limited_models]
+        
+        if remaining:
+            for model in remaining:
+                if self._test_model(model, "OK"):
+                    logger.info(f"Switched model: {self.model} → {model}")
+                    self.model = model
+                    return model
+        
+        return None
     
-    def score_paper(self, title: str, abstract: str, keywords: list) -> Tuple[float, str, str, list]:
+    def score_paper(self, title: str, abstract: str, keywords: List[str]) -> Tuple[float, str, str, List[str]]:
         """
         对论文进行评分和分类
         
@@ -120,7 +142,7 @@ class LLMScorer:
             logger.error(f"Failed to score paper: {e}")
             return 0.0, "", "", []
     
-    def _build_prompt(self, title: str, abstract: str, keywords: list) -> str:
+    def _build_prompt(self, title: str, abstract: str, keywords: List[str]) -> str:
         keywords_str = "、".join(keywords)
         return f"""请对这篇学术论文进行评分、总结和分类。
 
@@ -148,45 +170,48 @@ class LLMScorer:
     
     def _call_api(self, prompt: str) -> Dict:
         """调用 Google AI Studio API"""
-        url = f"{self.base_url}/models/{self.model}:generateContent"
         
-        headers = {
-            "Content-Type": "application/json",
-            "X-goog-api-key": self.api_key,
-        }
-        
-        data = {
-            "contents": [{
-                "parts": [{"text": prompt}]
-            }],
-            "generationConfig": {
-                "temperature": 0.3,
-                "maxOutputTokens": 2048
+        for retry in range(self.max_retries):
+            url = f"{self.base_url}/models/{self.model}:generateContent"
+            
+            headers = {
+                "Content-Type": "application/json",
+                "X-goog-api-key": self.api_key,
             }
-        }
-        
-        max_retries = 3
-        response = None
-        
-        for attempt in range(max_retries):
+            
+            data = {
+                "contents": [{
+                    "parts": [{"text": prompt}]
+                }],
+                "generationConfig": {
+                    "temperature": self.temperature,
+                    "maxOutputTokens": self.max_output_tokens
+                }
+            }
+            
+            response = None
             try:
                 response = requests.post(
                     url,
                     headers=headers,
                     json=data,
-                    timeout=60
+                    timeout=self.timeout
                 )
                 
                 if response.status_code == 429:
-                    error_detail = response.text
-                    logger.warning(f"Rate limited (429): {error_detail}")
-                    logger.warning(f"Waiting 60s (attempt {attempt + 1}/{max_retries})")
-                    time.sleep(60)
+                    logger.warning(f"Model {self.model} rate limited (429)")
+                    
+                    if self._switch_model():
+                        continue
+                    
+                    logger.warning(f"All models rate limited, waiting {self.retry_delay_429}s...")
+                    time.sleep(self.retry_delay_429)
+                    self.rate_limited_models.clear()
                     continue
                 
                 if response.status_code == 503:
-                    logger.warning(f"Service unavailable (503), waiting 10s... (attempt {attempt + 1}/{max_retries})")
-                    time.sleep(10)
+                    logger.warning(f"Service unavailable (503), waiting {self.retry_delay_503}s...")
+                    time.sleep(self.retry_delay_503)
                     continue
                 
                 if response.status_code == 400:
@@ -197,23 +222,19 @@ class LLMScorer:
                 response.raise_for_status()
                 return response.json()
                 
-            except requests.exceptions.HTTPError as e:
-                if attempt < max_retries - 1 and response and response.status_code in [429, 503, 502]:
-                    wait_time = 2 ** attempt * 5
-                    logger.warning(f"Request failed, retrying in {wait_time}s... ({e})")
-                    time.sleep(wait_time)
-                    continue
-                raise
             except requests.exceptions.Timeout:
-                if attempt < max_retries - 1:
-                    logger.warning(f"Timeout, retrying... (attempt {attempt + 1}/{max_retries})")
-                    time.sleep(5)
+                logger.warning(f"Timeout, retrying... ({retry + 1}/{self.max_retries})")
+                time.sleep(self.retry_delay_timeout)
+                continue
+            except requests.exceptions.HTTPError as e:
+                if response and response.status_code in [502, 503]:
+                    time.sleep(self.retry_delay_503)
                     continue
                 raise
         
         raise Exception("Max retries exceeded")
     
-    def _parse_response(self, response: Dict) -> Tuple[float, str, str, list]:
+    def _parse_response(self, response: Dict) -> Tuple[float, str, str, List[str]]:
         """解析API响应"""
         content = ""
         try:

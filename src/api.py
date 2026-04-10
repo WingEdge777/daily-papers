@@ -11,10 +11,15 @@ from .logger import logger
 class ArxivClient:
     """ArXiv API客户端"""
     
-    def __init__(self, max_results: int = 500, categories: Optional[List[str]] = None):
+    def __init__(
+        self,
+        max_results: int = 500,
+        base_url: str = "http://export.arxiv.org/api/query",
+        categories: Optional[List[str]] = None
+    ):
         self.max_results = max_results
+        self.base_url = base_url
         self.categories = categories or ["cs.CV", "cs.CL", "cs.AI", "cs.LG", "cs.MM"]
-        self.base_url = "http://export.arxiv.org/api/query"
     
     def fetch_papers(self) -> List[Paper]:
         """获取最新论文"""

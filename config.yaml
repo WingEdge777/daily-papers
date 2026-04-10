@@ -1,36 +1,47 @@
 # 研究领域关键词
 keywords:
-  # CV领域
   - "Computer Vision"
   - "Object Detection"
   - "Diffusion Models"
-  
-  # LLM领域
   - "Large Language Models"
   - "Vision Language Models"
   - "Multimodal"
-  
-  # 生成领域
   - "Image Generation"
   - "Video Generation"
 
 # ArXiv API配置
 arxiv:
   max_results: 500
-  target_categories:
-    - "cs.CV"      # Computer Vision
-    - "cs.CL"      # Computation and Language (NLP/LLM)
-    - "cs.AI"      # Artificial Intelligence
-    - "cs.LG"      # Machine Learning
-    - "cs.MM"      # Multimedia
+  base_url: "http://export.arxiv.org/api/query"
+  categories:
+    - "cs.CV"
+    - "cs.CL"
+    - "cs.AI"
+    - "cs.LG"
+    - "cs.MM"
 
+# LLM配置
 llm:
-  min_score: 10
+  min_score: 70
   max_papers_per_keyword: 5
+  rate_limit_interval: 4.1
   
   google:
     api_key: "${GOOGLE_AI_API_KEY}"
-    model: "auto"
     base_url: "https://generativelanguage.googleapis.com/v1beta"
+    model: "auto"
+    fallback_model: "gemini-2.5-flash"
+    priority_models:
+      - "gemini-3.1-flash-lite-preview"
+      - "gemini-2.5-flash-lite"
+      - "gemini-2.5-flash"
+      - "gemini-2.0-flash"
+    temperature: 0.3
+    max_output_tokens: 2048
+    timeout: 60
+    max_retries: 3
+    retry_delay_429: 10
+    retry_delay_503: 10
+    retry_delay_timeout: 5
 
 timezone: "Asia/Shanghai"

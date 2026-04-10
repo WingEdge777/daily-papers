@@ -28,11 +28,13 @@ class Config(BaseModel):
 
 
 class ArxivConfig(BaseModel):
-    max_results: int = 50
-    target_categories: List[str] = ["cs.LG", "cs.AI", "stat.ML"]
+    max_results: int = 500
+    base_url: str = "http://export.arxiv.org/api/query"
+    categories: List[str] = ["cs.CV", "cs.CL", "cs.AI", "cs.LG", "cs.MM"]
 
 
 class LLMConfig(BaseModel):
     min_score: float = 70.0
     max_papers_per_keyword: int = 5
+    rate_limit_interval: float = 4.1
     google: dict = {}
