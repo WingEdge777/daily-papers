@@ -7,6 +7,7 @@ on:
   push: 
     paths:
       - '.github/workflows/daily-papers.yml'
+      - 'config.yaml'
 
 jobs:
   fetch-papers:

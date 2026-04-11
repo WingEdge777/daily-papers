@@ -16,7 +16,7 @@ keywords:
 
 # ArXiv API配置
 arxiv:
-  max_results: 10
+  max_results: 200
   base_url: "http://export.arxiv.org/api/query"
   categories:
     - "cs.CV"
