@@ -25,7 +25,7 @@ class LLMScorer:
         self.retry_delay_timeout = self._get("retry_delay_timeout", 5)
         self.fallback_model = self._get("fallback_model", "gemma-4-31b-it")
         self.priority_models = self._get("priority_models", [
-            "gemini-3.1-flash-lite",
+            "gemini-2.5-flash-lite",
             "gemma-4-31b-it",
         ])
         
@@ -155,55 +155,29 @@ class LLMScorer:
         return 0.0, "", "", ""
     
     def _build_prompt(self, title: str, abstract: str, keywords: List[str]) -> str:
-        keywords_str = "、".join(keywords)
-        return f"""请对这篇学术论文进行严格评分、总结和分类。
+        keywords_str = ", ".join(keywords)
+        return f"""Score, summarize, and categorize the following academic paper.
+You MUST reply with a single JSON object and absolutely nothing else — no markdown, no explanation, no text before or after.
 
-标题: {title}
+Title: {title}
 
-摘要: {abstract}
+Abstract: {abstract}
 
-可选分类: {keywords_str}
+Available categories: {keywords_str}
 
-请从以下角度评估（每项0-25分，请严格评分，大部分论文应在60-80分区间）：
+Evaluate on four dimensions (0-25 each, be strict, most papers fall in 60-80):
 
-1. 创新性（0-25分）：
-   - 20-25分：重大突破或全新方法
-   - 15-19分：有意义的改进
-   - 10-14分：常规应用或小改进
-   - 0-9分：无明显创新
+1. Novelty (0-25): 20-25 major breakthrough; 15-19 meaningful improvement; 10-14 incremental; 0-9 none.
+2. Utility (0-25): 20-25 high impact; 15-19 some potential; 10-14 limited; 0-9 impractical.
+3. Rigor (0-25): 20-25 solid method & experiments; 15-19 adequate; 10-14 notable gaps; 0-9 flawed.
+4. Clarity (0-25): 20-25 clear & logical; 15-19 mostly clear; 10-14 mediocre; 0-9 hard to follow.
 
-2. 实用性（0-25分）：
-   - 20-25分：有重要应用价值
-   - 15-19分：有一定应用潜力
-   - 10-14分：应用场景有限
-   - 0-9分：缺乏实用价值
+Scoring guide: <85 for most papers; 60-80 for average; <60 for weak papers.
 
-3. 严谨性（0-25分）：
-   - 20-25分：方法合理，实验充分
-   - 15-19分：方法基本合理，实验尚可
-   - 10-14分：存在明显不足
-   - 0-9分：方法有严重缺陷
+Total score = sum of four dimensions (0-100).
 
-4. 清晰度（0-25分）：
-   - 20-25分：表述清晰，逻辑严密
-   - 15-19分：基本清晰
-   - 10-14分：表述一般
-   - 0-9分：难以理解
-
-评分指导：
-- 只有少数优秀论文才能达到85分以上
-- 大部分合格论文应在60-80分区间
-- 质量一般或有明显缺陷的论文应低于60分
-
-总分 = 四项得分之和（0-100分）
-
-请严格按以下JSON格式回复（不要有其他内容）：
-{{
-    "score": <0-100的整数>,
-    "summary": "<一句话总结论文核心贡献，30字以内>",
-    "reason": "<评分理由，50字以内>",
-    "category": "<最贴近的分类，从可选分类中选一个>"
-}}"""
+Reply ONLY with this exact JSON structure:
+{{"score": 72, "summary": "one-sentence summary of core contribution in Chinese within 30 chars", "reason": "scoring rationale in Chinese within 50 chars", "category": "pick one from available categories"}}"""
     
     def _call_api(self, prompt: str) -> Dict:
         """Call Google AI Studio API with model rotation and retry logic.
