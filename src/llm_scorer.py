@@ -23,10 +23,10 @@ class LLMScorer:
         self.retry_delay_429 = self._get("retry_delay_429", 10)
         self.retry_delay_503 = self._get("retry_delay_503", 10)
         self.retry_delay_timeout = self._get("retry_delay_timeout", 5)
-        self.fallback_model = self._get("fallback_model", "gemini-3.0-flash")
+        self.fallback_model = self._get("fallback_model", "gemma-4-31b-it")
         self.priority_models = self._get("priority_models", [
-            "gemini-3.0-flash",
-            "gemma-3-4b-it",
+            "gemini-3.1-flash-lite",
+            "gemma-4-31b-it",
         ])
         
         self.model = self._get_model()
@@ -59,7 +59,13 @@ class LLMScorer:
             
             models = response.json().get("models", [])
             available_models = {m["name"].replace("models/", ""): m for m in models}
-            
+
+            gen_models = [
+                name for name, m in available_models.items()
+                if "generateContent" in m.get("supportedGenerationMethods", [])
+            ]
+            logger.info(f"Available generateContent models: {gen_models}")
+
             test_prompt = "Reply with: OK"
             
             for model in self.priority_models:
@@ -133,16 +139,19 @@ class LLMScorer:
                 response = self._call_api(prompt)
                 score, summary, reason, category = self._parse_response(response)
                 if score > 0 or summary or reason or category:
-                    logger.info(f"Scored paper '{title[:50]}...': {score}/100, category: {category}")
+                    logger.info(
+                        f"Scored paper '{title[:50]}...': {score}/100, "
+                        f"category: {category}, model: {self.model}"
+                    )
                     return score, summary, reason, category
                 if attempt < max_parse_retries - 1:
-                    logger.warning("Failed to parse LLM response, retrying...")
+                    logger.warning(f"Failed to parse LLM response (model: {self.model}), retrying...")
             except Exception as e:
                 logger.error(f"Failed to score paper: {e}")
                 if attempt >= max_parse_retries - 1:
                     break
 
-        logger.info(f"Scored paper '{title[:50]}...': 0.0/100, category: ")
+        logger.info(f"Scored paper '{title[:50]}...': 0.0/100, category: , model: {self.model}")
         return 0.0, "", "", ""
     
     def _build_prompt(self, title: str, abstract: str, keywords: List[str]) -> str:
@@ -323,6 +332,6 @@ class LLMScorer:
             
             return score, summary, reason, category
         except Exception as e:
-            logger.error(f"Failed to parse response: {e}")
+            logger.error(f"Failed to parse response (model: {self.model}): {e}")
             logger.error(f"Response content: {content[:500] if content else 'N/A'}")
             return 0.0, "", "", ""

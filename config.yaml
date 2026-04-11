@@ -39,19 +39,17 @@ llm:
     api_key: "${GOOGLE_AI_API_KEY}"
     base_url: "https://generativelanguage.googleapis.com/v1beta"
     model: "auto"
-    fallback_model: "gemini-2.5-flash"
+    fallback_model: "gemma-4-31b-it"
     priority_models:
       - "gemini-3.1-flash-lite-preview"
       - "gemini-3.1-flash-lite"
-      - "gemini-3.0-flash"
-      - "gemini-2.5-flash-lite"
-      - "gemini-2.5-flash"
-      - "gemini-2.0-flash"
       - "gemma-4-31b-it"
       - "gemma-4-26b-a4b-it"
       - "gemma-3-27b-it"
       - "gemma-3-12b-it"
-      - "gemma-3-4b-it"
+      - "gemini-3.0-flash"
+      - "gemini-2.5-flash-lite"
+      - "gemini-2.5-flash"
     temperature: 0.3
     max_output_tokens: 2048
     timeout: 60
