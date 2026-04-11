@@ -30,7 +30,11 @@ class LLMScorer:
             "gemini-2.5-flash-lite",
             "gemini-2.5-flash",
             "gemini-2.0-flash",
-            "gemma-4-31B",
+            "gemma-4-31b-it",
+            "gemma-4-26b-a4b-it",
+            "gemma-3-27b-it",
+            "gemma-3-12b-it",
+            "gemma-3-4b-it",
         ])
         
         self.model = self._get_model()
@@ -111,17 +115,14 @@ class LLMScorer:
             return False
     
     def _switch_model(self) -> Optional[str]:
-        """Switch to next available model"""
+        """Switch to next available model without testing (to avoid wasting quota)"""
         self.rate_limited_models.add(self.model)
         
-        remaining = [m for m in self.priority_models if m not in self.rate_limited_models]
-        
-        if remaining:
-            for model in remaining:
-                if self._test_model(model, "OK"):
-                    logger.info(f"Switched model: {self.model} → {model}")
-                    self.model = model
-                    return model
+        for model in self.priority_models:
+            if model not in self.rate_limited_models:
+                logger.info(f"Switching model: {self.model} → {model}")
+                self.model = model
+                return model
         
         return None
     
@@ -195,9 +196,16 @@ class LLMScorer:
 }}"""
     
     def _call_api(self, prompt: str) -> Dict:
-        """Call Google AI Studio API"""
+        """Call Google AI Studio API with model rotation and retry logic.
         
-        for retry in range(self.max_retries):
+        Model switching (429/404) does not consume retry count.
+        Only "all models exhausted" cycles and timeouts count as retries.
+        """
+        self.rate_limited_models.clear()
+        self.unavailable_models: Set[str] = set()
+        retries = 0
+        
+        while retries < self.max_retries:
             url = f"{self.base_url}/models/{self.model}:generateContent"
             
             headers = {
@@ -226,36 +234,52 @@ class LLMScorer:
                 
                 if response.status_code == 429:
                     logger.warning(f"Model {self.model} rate limited (429)")
-                    
                     if self._switch_model():
                         continue
                     
-                    logger.warning(f"All models rate limited, waiting {self.retry_delay_429}s...")
+                    retries += 1
+                    logger.warning(
+                        f"All models rate limited, waiting {self.retry_delay_429}s... "
+                        f"({retries}/{self.max_retries})"
+                    )
                     time.sleep(self.retry_delay_429)
-                    self.rate_limited_models.clear()
+                    self.rate_limited_models = self.unavailable_models.copy()
+                    first_available = next(
+                        (m for m in self.priority_models if m not in self.unavailable_models),
+                        self.priority_models[0]
+                    )
+                    self.model = first_available
                     continue
                 
-                if response.status_code == 503:
-                    logger.warning(f"Service unavailable (503), waiting {self.retry_delay_503}s...")
+                if response.status_code in (404, 400):
+                    error_detail = response.text[:200]
+                    logger.warning(f"Model {self.model} unavailable ({response.status_code}): {error_detail}")
+                    self.unavailable_models.add(self.model)
+                    self.rate_limited_models.add(self.model)
+                    if self._switch_model():
+                        continue
+                    raise requests.exceptions.HTTPError(
+                        f"No available model, last error: {response.status_code}"
+                    )
+                
+                if response.status_code in (502, 503):
+                    retries += 1
+                    logger.warning(
+                        f"Service error ({response.status_code}), waiting {self.retry_delay_503}s... "
+                        f"({retries}/{self.max_retries})"
+                    )
                     time.sleep(self.retry_delay_503)
                     continue
-                
-                if response.status_code == 400:
-                    error_detail = response.text
-                    logger.error(f"Bad Request (400): {error_detail}")
-                    raise requests.exceptions.HTTPError(f"400 Bad Request: {error_detail}")
                 
                 response.raise_for_status()
                 return response.json()
                 
             except requests.exceptions.Timeout:
-                logger.warning(f"Timeout, retrying... ({retry + 1}/{self.max_retries})")
+                retries += 1
+                logger.warning(f"Timeout, retrying... ({retries}/{self.max_retries})")
                 time.sleep(self.retry_delay_timeout)
                 continue
-            except requests.exceptions.HTTPError as e:
-                if response and response.status_code in [502, 503]:
-                    time.sleep(self.retry_delay_503)
-                    continue
+            except requests.exceptions.HTTPError:
                 raise
         
         raise Exception("Max retries exceeded")

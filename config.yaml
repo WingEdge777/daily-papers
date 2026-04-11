@@ -46,7 +46,11 @@ llm:
       - "gemini-2.5-flash-lite"
       - "gemini-2.5-flash"
       - "gemini-2.0-flash"
-      - "gemma-4-31B"
+      - "gemma-4-31b-it"
+      - "gemma-4-26b-a4b-it"
+      - "gemma-3-27b-it"
+      - "gemma-3-12b-it"
+      - "gemma-3-4b-it"
     temperature: 0.3
     max_output_tokens: 2048
     timeout: 60
