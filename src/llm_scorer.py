@@ -28,6 +28,7 @@ class LLMScorer:
             "gemini-3.1-flash-lite-preview",
             "gemini-3.1-flash-lite",
             "gemini-2.5-flash-lite",
+            "gemini-3.0-flash"
             "gemini-2.5-flash",
             "gemini-2.0-flash",
             "gemma-4-31b-it",
@@ -134,15 +135,24 @@ class LLMScorer:
             (score, summary, reason, category): score (0-100), summary, reason, matched category
         """
         prompt = self._build_prompt(title, abstract, keywords)
-        
-        try:
-            response = self._call_api(prompt)
-            score, summary, reason, category = self._parse_response(response)
-            logger.info(f"Scored paper '{title[:50]}...': {score}/100, category: {category}")
-            return score, summary, reason, category
-        except Exception as e:
-            logger.error(f"Failed to score paper: {e}")
-            return 0.0, "", "", ""
+        max_parse_retries = 2
+
+        for attempt in range(max_parse_retries):
+            try:
+                response = self._call_api(prompt)
+                score, summary, reason, category = self._parse_response(response)
+                if score > 0 or summary or reason or category:
+                    logger.info(f"Scored paper '{title[:50]}...': {score}/100, category: {category}")
+                    return score, summary, reason, category
+                if attempt < max_parse_retries - 1:
+                    logger.warning("Failed to parse LLM response, retrying...")
+            except Exception as e:
+                logger.error(f"Failed to score paper: {e}")
+                if attempt >= max_parse_retries - 1:
+                    break
+
+        logger.info(f"Scored paper '{title[:50]}...': 0.0/100, category: ")
+        return 0.0, "", "", ""
     
     def _build_prompt(self, title: str, abstract: str, keywords: List[str]) -> str:
         keywords_str = "、".join(keywords)
@@ -213,14 +223,18 @@ class LLMScorer:
                 "X-goog-api-key": self.api_key,
             }
             
+            gen_config: Dict = {
+                "temperature": self.temperature,
+                "maxOutputTokens": self.max_output_tokens,
+            }
+            if self.model.startswith("gemini"):
+                gen_config["responseMimeType"] = "application/json"
+
             data = {
                 "contents": [{
                     "parts": [{"text": prompt}]
                 }],
-                "generationConfig": {
-                    "temperature": self.temperature,
-                    "maxOutputTokens": self.max_output_tokens
-                }
+                "generationConfig": gen_config,
             }
             
             response = None
