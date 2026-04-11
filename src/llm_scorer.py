@@ -23,18 +23,9 @@ class LLMScorer:
         self.retry_delay_429 = self._get("retry_delay_429", 10)
         self.retry_delay_503 = self._get("retry_delay_503", 10)
         self.retry_delay_timeout = self._get("retry_delay_timeout", 5)
-        self.fallback_model = self._get("fallback_model", "gemini-2.5-flash")
+        self.fallback_model = self._get("fallback_model", "gemini-3.0-flash")
         self.priority_models = self._get("priority_models", [
-            "gemini-3.1-flash-lite-preview",
-            "gemini-3.1-flash-lite",
-            "gemini-2.5-flash-lite",
-            "gemini-3.0-flash"
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemma-4-31b-it",
-            "gemma-4-26b-a4b-it",
-            "gemma-3-27b-it",
-            "gemma-3-12b-it",
+            "gemini-3.0-flash",
             "gemma-3-4b-it",
         ])
         
