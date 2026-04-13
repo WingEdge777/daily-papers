@@ -131,8 +131,7 @@ class DailyPapers:
                 logger.debug(f"Skipping malformed seen IDs record: {line}")
                 continue
             record_date, arxiv_id = parts[0].strip(), parts[1].strip()
-            # Ignore today's IDs to keep same-day reruns idempotent.
-            if record_date and arxiv_id and record_date != current_date:
+            if record_date and arxiv_id:
                 seen_ids.add(arxiv_id)
 
         logger.info(f"Loaded {len(seen_ids)} IDs from {seen_file} for deduplication")
@@ -246,20 +245,38 @@ class DailyPapers:
 
     def _deduplicate_papers(self, papers: List[Paper], historical_ids: Set[str]) -> List[Paper]:
         """Deduplicate fetched papers against history and within current batch."""
+        fetched_unique_ids: Set[str] = set()
+        for paper in papers:
+            fetched_unique_ids.add(self._paper_dedup_key(paper))
+
+        overlap_count = len(fetched_unique_ids & historical_ids)
+        logger.info(
+            f"Dedup stats: seen_ids={len(historical_ids)}, "
+            f"fetched_unique_ids={len(fetched_unique_ids)}, "
+            f"overlap_before_dedup={overlap_count}"
+        )
+
         seen_ids = set(historical_ids)
         unique_papers: List[Paper] = []
-        dropped_count = 0
+        dropped_from_history = 0
+        dropped_within_batch = 0
 
         for paper in papers:
             dedup_key = self._paper_dedup_key(paper)
             if dedup_key in seen_ids:
-                dropped_count += 1
+                if dedup_key in historical_ids:
+                    dropped_from_history += 1
+                else:
+                    dropped_within_batch += 1
                 continue
             seen_ids.add(dedup_key)
             unique_papers.append(paper)
 
-        if dropped_count > 0:
-            logger.info(f"Deduplicated {dropped_count} papers from fetched results")
+        logger.info(
+            f"Dedup result: dropped_from_history={dropped_from_history}, "
+            f"dropped_within_batch={dropped_within_batch}, "
+            f"remaining={len(unique_papers)}"
+        )
         return unique_papers
     
     def _score_papers(self, papers: List[Paper]) -> List[Paper]:
