@@ -1,5 +1,6 @@
 import html
 import re
+import shutil
 import sys
 import time
 import traceback
@@ -107,6 +108,36 @@ class DailyPapers:
             traceback.print_exc()
             sys.exit(1)
 
+    def _get_month_dir(self, date: str) -> Path:
+        """Get the month subdirectory for a given date (YYYY-MM-DD -> papers/YYYY-MM)."""
+        month = date[:7]
+        month_dir = Path("papers") / month
+        month_dir.mkdir(parents=True, exist_ok=True)
+        return month_dir
+
+    def _cleanup_old_months(self, current_date: str) -> None:
+        """Remove month directories older than 3 months."""
+        papers_dir = Path("papers")
+        current_month = current_date[:7]
+
+        try:
+            current_dt = datetime.strptime(current_month, "%Y-%m")
+        except ValueError:
+            return
+
+        for month_dir in papers_dir.iterdir():
+            if not month_dir.is_dir():
+                continue
+            try:
+                dir_dt = datetime.strptime(month_dir.name, "%Y-%m")
+            except ValueError:
+                continue
+
+            months_diff = (current_dt.year - dir_dt.year) * 12 + (current_dt.month - dir_dt.month)
+            if months_diff > 2:
+                shutil.rmtree(month_dir)
+                logger.info(f"Removed old month directory: {month_dir}")
+
     def _load_seen_ids(self, current_date: str) -> Set[str]:
         """Load persisted arXiv IDs from the index file."""
         papers_dir = Path("papers")
@@ -142,7 +173,7 @@ class DailyPapers:
         papers_dir = seen_file.parent
         records: Set[str] = set()
 
-        for paper_file in papers_dir.glob("*.md"):
+        for paper_file in papers_dir.rglob("*.md"):
             file_date = paper_file.stem
             try:
                 content = paper_file.read_text(encoding="utf-8")
@@ -409,19 +440,17 @@ class DailyPapers:
     
     def _write_files(self, readme: str, daily: str, date: str):
         """Write output files"""
-        # Write README
         with open("README.md", "w", encoding='utf-8') as f:
             f.write(readme)
-        
-        # Write daily file
-        papers_dir = Path("papers")
-        papers_dir.mkdir(exist_ok=True)
-        
-        daily_file = papers_dir / f"{date}.md"
+
+        month_dir = self._get_month_dir(date)
+        daily_file = month_dir / f"{date}.md"
         with open(daily_file, "w", encoding='utf-8') as f:
             f.write(daily)
-        
-        logger.info(f"✅ Files updated: README.md, papers/{date}.md")
+
+        self._cleanup_old_months(date)
+
+        logger.info(f"✅ Files updated: README.md, papers/{date[:7]}/{date}.md")
 
 
 def main():
