@@ -2,7 +2,7 @@ name: Daily Papers
 
 on:
   schedule:
-    - cron: '0 17 * * *'  # UTC 0:00 = beijing 01:00
+    - cron: '22 18 * * *'  # UTC 18:00 = beijing 02:22
   workflow_dispatch:  # 手动触发
   push: 
     paths:
