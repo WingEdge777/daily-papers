@@ -1,3 +1,4 @@
+import socket
 import time
 import urllib.error
 import urllib.parse
@@ -10,7 +11,7 @@ import feedparser
 from src.logger import logger
 from src.models import Paper
 
-ARXIV_REQUEST_TIMEOUT_SEC = 15
+ARXIV_REQUEST_TIMEOUT_SEC = 30
 ARXIV_MAX_RETRIES = 3
 ARXIV_RETRY_DELAY_429_SEC = 10
 ARXIV_RETRY_DELAY_NETWORK_SEC = 5
@@ -93,6 +94,18 @@ class ArxivClient:
                     time.sleep(sleep_sec)
                     continue
                 logger.error(f"ArXiv network error: {e.reason}")
+                raise
+            except (TimeoutError, socket.timeout) as e:
+                if attempt < ARXIV_MAX_RETRIES:
+                    sleep_sec = (2 ** (attempt - 1)) + 3
+                    logger.warning(
+                        f"ArXiv timeout error: {e}, sleeping "
+                        f"{sleep_sec}s before retry "
+                        f"{attempt + 1}/{ARXIV_MAX_RETRIES}"
+                    )
+                    time.sleep(sleep_sec)
+                    continue
+                logger.error(f"ArXiv timeout error: {e}")
                 raise
 
         raise RuntimeError("ArXiv fetch retries exhausted")
