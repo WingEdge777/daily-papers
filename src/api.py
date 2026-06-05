@@ -12,7 +12,7 @@ from src.logger import logger
 from src.models import Paper
 
 ARXIV_REQUEST_TIMEOUT_SEC = 30
-ARXIV_MAX_RETRIES = 3
+ARXIV_MAX_RETRIES = 5
 ARXIV_RETRY_DELAY_429_SEC = 10
 ARXIV_RETRY_DELAY_NETWORK_SEC = 5
 ARXIV_RETRYABLE_HTTP_CODES = (429, 502, 503, 504)
@@ -72,7 +72,8 @@ class ArxivClient:
                 if e.code in ARXIV_RETRYABLE_HTTP_CODES and attempt < ARXIV_MAX_RETRIES:
                     if e.code == 429:
                         retry_after = e.headers.get("Retry-After")
-                        sleep_sec = self._parse_retry_after(retry_after, ARXIV_RETRY_DELAY_429_SEC)
+                        default_429 = ARXIV_RETRY_DELAY_429_SEC * attempt
+                        sleep_sec = self._parse_retry_after(retry_after, default_429)
                     else:
                         sleep_sec = (2 ** (attempt - 1)) + 3
                     logger.warning(
