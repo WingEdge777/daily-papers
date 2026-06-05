@@ -29,7 +29,7 @@ class Config(BaseModel):
 
 class ArxivConfig(BaseModel):
     max_results: int = 500
-    base_url: str = "http://export.arxiv.org/api/query"
+    base_url: str = "https://export.arxiv.org/api/query"
     categories: List[str] = ["cs.CV", "cs.CL", "cs.AI", "cs.LG", "cs.MM"]
 
 

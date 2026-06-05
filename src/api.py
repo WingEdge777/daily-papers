@@ -10,10 +10,12 @@ import feedparser
 from src.logger import logger
 from src.models import Paper
 
-ARXIV_REQUEST_TIMEOUT_SEC = 60
+ARXIV_REQUEST_TIMEOUT_SEC = 15
 ARXIV_MAX_RETRIES = 3
 ARXIV_RETRY_DELAY_429_SEC = 10
 ARXIV_RETRY_DELAY_NETWORK_SEC = 5
+ARXIV_RETRYABLE_HTTP_CODES = (429, 502, 503, 504)
+ARXIV_USER_AGENT = "DailyPapersBot/1.0 (+https://github.com/WingEdge777/daily-papers; mailto:handkodu@gmail.com)"
 
 
 class ArxivClient:
@@ -22,7 +24,7 @@ class ArxivClient:
     def __init__(
         self,
         max_results: int = 500,
-        base_url: str = "http://export.arxiv.org/api/query",
+        base_url: str = "https://export.arxiv.org/api/query",
         categories: Optional[List[str]] = None,
     ):
         self.max_results = max_results
@@ -57,17 +59,23 @@ class ArxivClient:
         return papers
 
     def _fetch_feed_body(self, url: str) -> str:
-        """Fetch ArXiv feed with retry on rate limit and transient network errors."""
+        """Fetch ArXiv feed with custom User-Agent and retry on transient errors."""
+        headers = {"User-Agent": ARXIV_USER_AGENT}
+        req = urllib.request.Request(url, headers=headers)
+
         for attempt in range(1, ARXIV_MAX_RETRIES + 1):
             try:
-                with urllib.request.urlopen(url, timeout=ARXIV_REQUEST_TIMEOUT_SEC) as resp:
+                with urllib.request.urlopen(req, timeout=ARXIV_REQUEST_TIMEOUT_SEC) as resp:
                     return resp.read().decode("utf-8")
             except urllib.error.HTTPError as e:
-                if e.code == 429 and attempt < ARXIV_MAX_RETRIES:
-                    retry_after = e.headers.get("Retry-After")
-                    sleep_sec = self._parse_retry_after(retry_after, ARXIV_RETRY_DELAY_429_SEC)
+                if e.code in ARXIV_RETRYABLE_HTTP_CODES and attempt < ARXIV_MAX_RETRIES:
+                    if e.code == 429:
+                        retry_after = e.headers.get("Retry-After")
+                        sleep_sec = self._parse_retry_after(retry_after, ARXIV_RETRY_DELAY_429_SEC)
+                    else:
+                        sleep_sec = (2 ** (attempt - 1)) + 3
                     logger.warning(
-                        f"ArXiv rate limited (429), sleeping {sleep_sec}s "
+                        f"ArXiv HTTP {e.code}, sleeping {sleep_sec}s "
                         f"before retry {attempt + 1}/{ARXIV_MAX_RETRIES}"
                     )
                     time.sleep(sleep_sec)
@@ -76,12 +84,13 @@ class ArxivClient:
                 raise
             except urllib.error.URLError as e:
                 if attempt < ARXIV_MAX_RETRIES:
+                    sleep_sec = (2 ** (attempt - 1)) + 3
                     logger.warning(
                         f"ArXiv network error: {e.reason}, sleeping "
-                        f"{ARXIV_RETRY_DELAY_NETWORK_SEC}s before retry "
+                        f"{sleep_sec}s before retry "
                         f"{attempt + 1}/{ARXIV_MAX_RETRIES}"
                     )
-                    time.sleep(ARXIV_RETRY_DELAY_NETWORK_SEC)
+                    time.sleep(sleep_sec)
                     continue
                 logger.error(f"ArXiv network error: {e.reason}")
                 raise
