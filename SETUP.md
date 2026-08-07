@@ -74,7 +74,7 @@ schedule:
 ```yaml
 llm:
   google:
-    model: "gemini-3.1-flash-lite-preview"  # 指定模型
+    model: "gemini-3.5-flash-lite-preview"  # 指定模型
 ```
 
 ## 故障排查
