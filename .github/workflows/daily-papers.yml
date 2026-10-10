@@ -12,6 +12,7 @@ on:
 jobs:
   fetch-papers:
     runs-on: ubuntu-latest
+    environment: GOOGLE_AI_API_KEY
     permissions:
       contents: write
     
